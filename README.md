@@ -1,4 +1,5 @@
 #AQ
+
 AQ is a program of Go game with level of expert players.  
 [CGOS](http://www.yss-aya.com/cgos/19x19/standings.html) rating: 3674 (standings)  
 
