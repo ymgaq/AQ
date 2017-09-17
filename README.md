@@ -25,7 +25,7 @@ Build with [bazel](https://bazel.build/) and [TensorFlow](https://www.tensorflow
 See [this instruction](https://medium.com/jim-fleming/loading-a-tensorflow-graph-with-the-c-api-4caaff88463f).
 
 ## License
-[MIT](https://github.com/tymgaq/AQ/LICENCE)
+[MIT](https://github.com/ymgaq/AQ/LICENCE.txt)
 
 ## Author
 [Yu Yamaguchi](https://twitter.com/ymg_aq)
