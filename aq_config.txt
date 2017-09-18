@@ -5,7 +5,7 @@
 -thread count =4
 
 ### Time contorol setting ###
-# If using 'left_time' command via GTP,
+# If using 'time_left' command via GTP,
 # set 'time controll' to false.
 -main　time[sec] =0
 -byoyomi[sec] =5
@@ -16,7 +16,7 @@
 -komi =7.5
 -symmetrical index =0
 -mimic go =false
--never resign =fasle
+-never resign =false
 
 ### Others ###
 -self match =false
@@ -25,4 +25,4 @@
 -worker =false
 -pb path =pb
 -resume sgf path =
--woker count =1
+-worker count =1
