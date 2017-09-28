@@ -82,12 +82,9 @@ void SelfMatch() {
 	int prev_move = VNULL;
 	double win_rate = 0.5;
 	std::string log_path = "./log/log_self.txt";
-	tree.log_path = log_path;
+	tree.log_file = new std::ofstream(log_path, std::ofstream::out);
 
 	for(int i=0;i<1;++i){
-		std::ofstream ofs(log_path);
-		ofs.close();
-
 		b.Clear();
 		prev_move = VNULL;
 		win_rate = 0.5;
@@ -96,7 +93,7 @@ void SelfMatch() {
 			next_move = tree.SearchTree(b, 0.0, win_rate, true, false);
 			b.PlayLegal(next_move);
 			PrintBoard(b, next_move);
-			PrintBoard(b, next_move, log_path);
+			PrintBoard(b, next_move, tree.log_file);
 			if (next_move==PASS && prev_move==PASS) break;
 			prev_move = next_move;
 		}

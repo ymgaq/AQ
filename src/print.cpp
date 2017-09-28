@@ -66,10 +66,10 @@ void PrintBoard(Board& b, int v){
  *  盤面をファイルに出力する.
  *  Output the board to the file.
  */
-void PrintBoard(Board& b, int v, std::string file_path) {
+void PrintBoard(Board& b, int v, std::ofstream* log_file) {
 
 	//出力するファイルを開く
-	std::ofstream ofs(file_path, std::ios::app);
+	std::ofstream& ofs = *log_file;
 	if (ofs.fail()) return;
 
 	// x座標を出力
@@ -116,8 +116,6 @@ void PrintBoard(Board& b, int v, std::string file_path) {
 	ofs << "  ";
 	for (int x=0;x<BSIZE;++x)  ofs << " " << str_x[x] << " ";
 	ofs << endl;
-
-	ofs.close();
 }
 
 void PrintEF(std::string str, std::ofstream& ofs){
@@ -130,10 +128,9 @@ void PrintEF(std::string str, std::ofstream& ofs){
  *  Output the final score.
  */
 void PrintFinalScore(Board& b, int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT],
-		int win_pl, double komi, std::string file_path)
+		int win_pl, double komi, std::ofstream* log_file)
 {
-
-	std::ofstream ofs(file_path, std::ios::app);
+	std::ofstream& ofs = *log_file;
 
 	// 1. 死石を表示する
 	//    Display dead stones.
