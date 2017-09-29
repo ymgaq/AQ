@@ -74,6 +74,6 @@ public:
 	}
 
 	void LaunchWorkers();
-	int Consult(Tree& tree, std::string log_path);
+	int Consult(Tree& tree, std::ofstream* log_file);
 
 };

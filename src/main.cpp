@@ -16,6 +16,24 @@ int main(int argc, char **argv) {
 
 }
 
+std::string trim(const std::string& string, const char* trimCharacterList = " \t\v\r\n") {
+	std::string result;
+
+	auto left = string.find_first_not_of(trimCharacterList);
+
+	if (left != std::string::npos)
+	{
+		auto right = string.find_last_not_of(trimCharacterList);
+
+		result = string.substr(left, right - left + 1);
+	}
+
+	return result;
+}
+
+int parseBool(const std::string& str) {
+	return str == "true" || str == "True" || str == "TRUE";
+}
 
 void ReadConfiguration(int argc, char **argv){
 
@@ -38,35 +56,41 @@ void ReadConfiguration(int argc, char **argv){
 		// Read line by line.
 		int line_cnt = 0;
 		while (ifs && getline(ifs, str)) {
-
-			if(str.find("=") != std::string::npos){
-				auto head = str.find("=") + 1;
-				str = str.substr(head);
-				if(str.substr(0,1) == " ") str = str.substr(1);
+			line_cnt++;
+			auto cmt = str.find("#");
+			if (cmt != std::string::npos) {
+				str = str.substr(0, cmt);
 			}
-			else continue;
+			str = trim(str, " \t\v\r\n-");
+			if (str.length() == 0) continue;
 
-			switch(line_cnt){
-				case 0:  cfg_gpu_cnt 	= stoi(str); break;
-				case 1:  cfg_thread_cnt 	= stoi(str); break;
-				case 2:  cfg_main_time 	= stod(str); break;
-				case 3:  cfg_byoyomi 	= stod(str); break;
-				case 4:  need_time_controll = (str == "true" || str == "True"); break;
-				case 5:  japanese_rule 	= (str == "true" || str == "True"); break;
-				case 6:  cfg_komi 		= stod(str); break;
-				case 7:  cfg_sym_idx 	= stoi(str); break;
-				case 8:  cfg_mimic 		= (str == "true" || str == "True"); break;
-				case 9:  never_resign 	= (str == "true" || str == "True"); break;
-				case 10: self_match 	= (str == "true" || str == "True"); break;
-				case 11: save_log 		= (str == "true" || str == "True"); break;
-				case 12: is_master 		= (str == "true" || str == "True"); break;
-				case 13: is_worker 		= (str == "true" || str == "True"); break;
-				case 14: pb_dir 		= str; break;
-				case 15: resume_sgf_path 	= str; break;
-				case 16: cfg_worker_cnt 	= stoi(str); break;
-				default: break;
+			auto eql = str.find("=") + 1;
+			if (eql == std::string::npos) {
+				std::cerr << "Failed to parse config:" << config_path << ":" << line_cnt << " " << str << ". '=' not found" << std::endl;
+				continue;
 			}
-			++line_cnt;
+			auto key = trim(str.substr(0, eql - 1));
+			auto val = trim(str.substr(eql));
+			if (key == "gpu count")			cfg_gpu_cnt = stoi(val);
+			else if (key == "thread count")		cfg_thread_cnt = stoi(val);
+			else if (key == "main time[sec]")	cfg_main_time = stod(val);
+			else if (key == "byoyomi[sec]")		cfg_byoyomi = stod(val);
+			else if (key == "time controll")	need_time_controll = parseBool(val);
+			else if (key == "japanese rule")	japanese_rule = parseBool(val);
+			else if (key == "komi")			cfg_komi = stod(val);
+			else if (key == "symmetrical index")	cfg_sym_idx = stoi(val);
+			else if (key == "mimic go")		cfg_mimic = parseBool(val);
+			else if (key == "never resign")		never_resign = parseBool(val);
+			else if (key == "self match")		self_match = parseBool(val);
+			else if (key == "save log")		save_log = parseBool(val);
+			else if (key == "master")		is_master = parseBool(val);
+			else if (key == "worker")		is_worker = parseBool(val);
+			else if (key == "pb path")		pb_dir = val;
+			else if (key == "resume sgf path")	resume_sgf_path = val;
+			else if (key == "worker count")		cfg_worker_cnt = stoi(val);
+			else {
+				std::cerr << "Unknown key: [" << key << "]" << std::endl;
+			}
 		}
 		ifs.close();
 	}
@@ -82,12 +106,9 @@ void SelfMatch() {
 	int prev_move = VNULL;
 	double win_rate = 0.5;
 	std::string log_path = "./log/log_self.txt";
-	tree.log_path = log_path;
+	tree.log_file = new std::ofstream(log_path, std::ofstream::out);
 
 	for(int i=0;i<1;++i){
-		std::ofstream ofs(log_path);
-		ofs.close();
-
 		b.Clear();
 		prev_move = VNULL;
 		win_rate = 0.5;
@@ -96,7 +117,7 @@ void SelfMatch() {
 			next_move = tree.SearchTree(b, 0.0, win_rate, true, false);
 			b.PlayLegal(next_move);
 			PrintBoard(b, next_move);
-			PrintBoard(b, next_move, log_path);
+			PrintBoard(b, next_move, tree.log_file);
 			if (next_move==PASS && prev_move==PASS) break;
 			prev_move = next_move;
 		}

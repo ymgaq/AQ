@@ -6,6 +6,7 @@
 #include <thread>
 #include <vector>
 #include <iomanip>
+#include <ostream>
 
 #include "gtp.h"
 
@@ -72,8 +73,7 @@ int CallGTP(){
 	if(save_log){
 		std::stringstream ss;
 		ss << "./log/log_" << file_cnt << ".txt";
-		tree.log_path = ss.str();
-		std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
+		tree.log_file = new std::ofstream(ss.str(), std::ofstream::out);
 	}
 
 	// 3. 入力棋譜がある場合は読みだす
@@ -160,8 +160,7 @@ int CallGTP(){
 				++file_cnt;
 				std::stringstream ss;
 				ss << "./log/log_" << file_cnt << ".txt";
-				tree.log_path = ss.str();
-				std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
+		                tree.log_file = new std::ofstream(ss.str(), std::ofstream::out);
 			}
 
 			is_playing = is_worker? true : false;
@@ -243,7 +242,7 @@ int CallGTP(){
 				{
 					// 合議の結果を反映する
 					// Reflect the result of consultation.
-					next_move = cluster.Consult(tree, tree.log_path);
+					next_move = cluster.Consult(tree, tree.log_file);
 				}
 			}
 
@@ -289,8 +288,8 @@ int CallGTP(){
 			if(!is_worker){
 
 				PrintBoard(b, next_move);
-				if(tree.log_path != ""){
-					PrintBoard(b, next_move, tree.log_path);
+				if(tree.log_file != NULL){
+					PrintBoard(b, next_move, tree.log_file);
 				}
 
 				if(save_log){
@@ -376,7 +375,7 @@ int CallGTP(){
 			// f. ログファイルを更新する. Update logs.
 			sgf.AddMove(next_move);
 			if(!is_worker){
-				if(tree.log_path != "") PrintBoard(b, next_move, tree.log_path);
+				if(tree.log_file != NULL) PrintBoard(b, next_move, tree.log_file);
 				PrintBoard(b, next_move);
 
 				if(save_log){

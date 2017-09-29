@@ -1,3 +1,4 @@
+#include <iostream>
 #include "cluster.h"
 
 using std::string;
@@ -186,7 +187,7 @@ void Cluster::LaunchWorkers(){
 
 }
 
-int Cluster::Consult(Tree& tree, string log_path){
+int Cluster::Consult(Tree& tree, std::ofstream* log_path){
 
 	SendCommand("bestbranch");
 	std::vector<bool> is_ready;

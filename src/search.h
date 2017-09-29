@@ -85,7 +85,7 @@ public:
 	int extension_cnt;
 	std::atomic<bool> stop_think;
 
-	std::string log_path;
+	std::ofstream* log_file;
 
 	Tree();
 	Tree(std::vector<std::string>& sl_path, std::vector<std::string>& vl_path);
@@ -117,7 +117,7 @@ public:
 
 };
 
-void PrintLog(std::string log_path, const char* output_text, ...);
+void PrintLog(std::ofstream* log_path, const char* output_text, ...);
 void SortChildren(Node* pn, std::vector<Child*>& child_list);
 std::string CoordinateString(int v);
 

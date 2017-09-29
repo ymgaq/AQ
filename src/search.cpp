@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <thread>
 #include <stdarg.h>
+#include <iostream>
+#include <fstream>
 
 #include "search.h"
 
@@ -138,7 +140,7 @@ void Tree::Clear(){
 	node.clear();
 	node.resize(node_limit);
 
-	log_path = "";
+	log_file = NULL;
 	stop_think = false;
 
 }
@@ -806,22 +808,20 @@ double Tree::SearchBranch(Board& b, int node_idx, double& value_result,
 }
 
 
-void PrintLog(std::string log_path, const char* output_text, ...){
+void PrintLog(std::ofstream* log_file, const char* output_text, ...){
+
+	char buff[1024];
 
 	va_list args;
-
 	va_start(args, output_text);
-	vfprintf(stderr, output_text, args);
+	vsnprintf(buff, sizeof(buff), output_text, args);
 	va_end(args);
 
-	va_start(args, output_text);
-	if(log_path != ""){
-		FILE *pf;
-		pf = fopen(log_path.c_str(), "aw");
-		vfprintf(pf, output_text, args);
-		fclose(pf);
+	fprintf(stderr, buff);
+
+	if(log_file != NULL){
+		*log_file << buff;
 	}
-	va_end(args);
 
 }
 
@@ -948,8 +948,8 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 		if(rc0_game_cnt < 1000){
 			int v = pn->children[pn->prob_order[0]].move;
 			if(is_errout){
-				PrintLog(log_path, "move cnt=%d lambda=%.2f\n", b.move_cnt, lambda);
-				PrintLog(log_path, "emagency mode: remaining time=%.1f[sec], move=%s, prob=.1%f[%%]\n",
+				PrintLog(log_file, "move cnt=%d lambda=%.2f\n", b.move_cnt, lambda);
+				PrintLog(log_file, "emagency mode: remaining time=%.1f[sec], move=%s, prob=.1%f[%%]\n",
 						(double)left_time, CoordinateString(v).c_str(), pn->children[pn->prob_order[0]].prob * 100);
 			}
 			win_rate = 0.5;
@@ -976,7 +976,7 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 		{
 			// Skip search.
 			if(is_errout){
-				PrintLog(log_path, "%d[node] remaining time=%.1f[sec]\n", node_cnt, (double)left_time);
+				PrintLog(log_file, "%d[node] remaining time=%.1f[sec]\n", node_cnt, (double)left_time);
 			}
 		}
 		else
@@ -1063,7 +1063,7 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 			auto t2 = std::chrono::system_clock::now();
 			auto elapsed_time = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()/1000;
 			if(is_errout){
-				PrintLog(log_path, "%d[node] %.1f[sec] %d[playouts] %.1f[pps/thread]\nremaining time=%.1f[sec]\n",
+				PrintLog(log_file, "%d[node] %.1f[sec] %d[playouts] %.1f[pps/thread]\nremaining time=%.1f[sec]\n",
 						node_cnt,
 						elapsed_time,
 						(pn->total_game_cnt - prev_game_cnt),
@@ -1118,8 +1118,8 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 	// 11. ãˆÊ‚ÌŽqƒm[ƒh‚Ì’TõŒ‹‰Ê‚ðo—Í‚·‚é.
 	//     Output information of upper child nodes.
 	if (is_errout) {
-		PrintLog(log_path, "move cnt=%d lambda=%.2f\n", b.move_cnt + 1, lambda);
-		PrintLog(log_path, "total games=%d, evaluated policy=%d(%d), evaluated value=%d(%d)\n",
+		PrintLog(log_file, "move cnt=%d lambda=%.2f\n", b.move_cnt + 1, lambda);
+		PrintLog(log_file, "total games=%d, evaluated policy=%d(%d), evaluated value=%d(%d)\n",
 				  (int)pn->total_game_cnt, eval_policy_cnt, (int)policy_que_cnt, eval_value_cnt, (int)value_que_cnt);
 
 		for(int i=0;i<std::min((int)pn->child_cnt, 9);++i) {
@@ -1142,12 +1142,12 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 				depth = CollectNodeIndex((int)pc->next_idx, depth, node_list);
 			}
 
-			PrintLog(log_path, "%d: %s,\t", i + 1, CoordinateString((int)pc->move).c_str());
-			PrintLog(log_path, "game=%d, \t", game_cnt);
-			PrintLog(log_path, "%3.1f[%%](%3.2f/%3.2f),\t", rate * 100, rollout_rate, value_rate);
-			PrintLog(log_path, "value=%.2f,\t", ((double)pc->value + 1) / 2);
-			PrintLog(log_path, "prob=%3.1f[%%],\t", (double)pc->prob * 100);
-			PrintLog(log_path, "depth=%d\n", depth);
+			PrintLog(log_file, "%d: %s,\t", i + 1, CoordinateString((int)pc->move).c_str());
+			PrintLog(log_file, "game=%d, \t", game_cnt);
+			PrintLog(log_file, "%3.1f[%%](%3.2f/%3.2f),\t", rate * 100, rollout_rate, value_rate);
+			PrintLog(log_file, "value=%.2f,\t", ((double)pc->value + 1) / 2);
+			PrintLog(log_file, "prob=%3.1f[%%],\t", (double)pc->prob * 100);
+			PrintLog(log_file, "depth=%d\n", depth);
 		}
 	}
 
@@ -1409,7 +1409,7 @@ void Tree::PrintResult(Board& b){
 	}
 	int win_pl = ((double)win_cnt/rollout_cnt >= 0.5)? 1 : 0;
 
-	PrintFinalScore(b, stat.game, stat.owner, win_pl, komi, log_path);
+	PrintFinalScore(b, stat.game, stat.owner, win_pl, komi, log_file);
 
 }
 
