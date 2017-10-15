@@ -228,6 +228,14 @@ int CallGTP(){
 			cerr << "thinking...\n";
 
 			pl = FindStr(gtp_str, "B", "b")? 1 : 0;
+			if(pl != b.my){
+				// Insert pass if the turn is different.
+				b.PlayLegal(PASS);
+				sgf.AddMove(PASS);
+				tree.UpdateRootNode(b);
+				--b.pass_cnt[b.her];
+			}
+
 			is_playing = true;
 			int next_move;
 			tree.stop_think = false;
@@ -375,18 +383,14 @@ int CallGTP(){
 				next_move = xytoe[x][y];
 			}
 
-			// b. 置石を配置する前に白のパスを挿入する
-			//    Insert white pass before placing a stone
-			if(	b.my == 0 && FindStr(gtp_str, "play b", "play B"))
+			// b. 異なる手番の石を配置する前にパスを挿入する
+			//    Insert pass before placing a opponent's stone.
+			if(	(b.my == 0 && FindStr(gtp_str, "play b", "play B")) ||
+				(b.my == 1 && FindStr(gtp_str, "play w", "play W"))	)
 			{
 				b.PlayLegal(PASS);
 				sgf.AddMove(PASS);
-				--b.pass_cnt[0];
-
-				if(tree.komi != 0.5){
-					tree.komi = 0.5;
-					cerr << "set komi=0.5.\n";
-				}
+				--b.pass_cnt[b.her];
 			}
 
 			// c. 局面を進める. Play the move.
