@@ -102,6 +102,20 @@ struct LGR{
 		}
 		return *this;
 	}
+
+	LGR& operator+=(const LGR& rhs){
+		policy[0].insert(rhs.policy[0].begin(),rhs.policy[0].end());
+		policy[1].insert(rhs.policy[1].begin(),rhs.policy[1].end());
+		for(int i=0;i<2;++i){
+			for(int j=0;j<EBVCNT;++j){
+				for(int k=0;k<EBVCNT;++k){
+					if(rhs.rollout[i][j][k] != VNULL)
+						rollout[i][j][k] = rhs.rollout[i][j][k];
+				}
+			}
+		}
+		return *this;
+	}
 };
 
 

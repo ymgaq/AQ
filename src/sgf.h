@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 #ifdef _WIN32
+	#define COMPILER_MSVC
+	#define NOMINMAX
 	#include <Windows.h>
 	#include <conio.h>
 #else

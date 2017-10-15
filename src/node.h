@@ -2,7 +2,6 @@
 
 #include <atomic>
 #include <memory>
-#include "unistd.h"
 
 #include "board.h"
 #include "feed_tensor.h"
@@ -92,11 +91,11 @@ class Node {
 
 public:
 	std::atomic<int> pl;						// 手番.					Turn index.
+	std::atomic<int> move_cnt;					// この局面の手数.		Move count.
 	std::atomic<int> child_cnt;					// 子局面の数. 			Number of child branches.
 	Child children[BVCNT+1];					// 子局面の配列.			Array of child branches.
 	std::atomic<double> prob[EBVCNT];			// 盤面の確率分布		Probability with the policy network.
 	std::atomic<double> prob_roll[2][EBVCNT];	// 盤面の確率分布 		Probability for rollout.
-	std::atomic<double> w_prob[2][EBVCNT];		// 盤面の確率パラメータ 	Sum of probability weight.
 	std::atomic<int> prob_order[BVCNT + 1];		// 確率の高い順にソートした子ノードのインデックス.		Ordered index of the children.
 	std::atomic<int> total_game_cnt;			// 盤面の探索回数の合計.	Total number of search.
 	std::atomic<int> rollout_cnt;				// rolloutの実行回数				Number of rollout execution.
@@ -115,13 +114,12 @@ public:
 
 	Node& operator=(const Node& rhs){
 		pl.store(rhs.pl.load());
+		move_cnt.store(rhs.move_cnt.load());
 		child_cnt.store(rhs.child_cnt.load());
 		for(int i=0;i<child_cnt;++i) children[i] = rhs.children[i];
 		for(int i=0;i<EBVCNT;++i) prob[i].store(rhs.prob[i].load());
 		for(int i=0;i<EBVCNT;++i) prob_roll[0][i].store(rhs.prob_roll[0][i].load());
 		for(int i=0;i<EBVCNT;++i) prob_roll[1][i].store(rhs.prob_roll[1][i].load());
-		for(int i=0;i<EBVCNT;++i) w_prob[0][i].store(rhs.w_prob[0][i].load());
-		for(int i=0;i<EBVCNT;++i) w_prob[1][i].store(rhs.w_prob[1][i].load());
 		for(int i=0;i<BVCNT+1;++i) prob_order[i].store(rhs.prob_order[i].load());
 		total_game_cnt.store(rhs.total_game_cnt.load());
 		rollout_cnt.store(rhs.rollout_cnt.load());
@@ -139,12 +137,11 @@ public:
 
 	void Clear(){
 		pl = 0;
+		move_cnt = 0;
 		child_cnt = 0;
 		for(auto& i:prob) i = 0.0;
 		for(auto& i:prob_roll[0]) i = 0.0;
 		for(auto& i:prob_roll[1]) i = 0.0;
-		for(auto& i:w_prob[0]) i = 0.0;
-		for(auto& i:w_prob[1]) i = 0.0;
 		for(int i=0;i<BVCNT+1;++i) prob_order[i] = i;
 		total_game_cnt = 0;
 		rollout_cnt = 0;

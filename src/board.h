@@ -9,6 +9,19 @@
 #include "pattern3x3.h"
 #include "zobrist.h"
 
+#ifdef _WIN32
+	#define COMPILER_MSVC
+#endif
+
+#if defined (_M_IX86)
+inline int popcnt32twice(int64 bb) {
+		return	_mm_popcnt_u32(unsigned int(bb)) + \
+				_mm_popcnt_u32(unsigned int(bb >> 32));
+	}
+	#define popcnt64 popcnt32twice
+#else
+	#define popcnt64 _mm_popcnt_u64
+#endif  /* defined (_M_IX86) */
 
 /**
  *  符号なし64bit整数のNTZ（右から続く0の個数）を求める関数
@@ -32,6 +45,7 @@ inline constexpr int NTZ(int64 x) noexcept {
     return ntz_table64[static_cast<int64>(magic64*static_cast<int64>(x&-x))>>57];
 }
 
+extern const double response_w[4][2];
 
 /**************************************************************
  *
@@ -142,7 +156,7 @@ public:
 		for(int i=0;i<6;++i){
 			lib_bits[i] |= other.lib_bits[i];
 			if(lib_bits[i] != 0){
-				lib_cnt += (int)_mm_popcnt_u64(lib_bits[i]);
+				lib_cnt += (int)popcnt64(lib_bits[i]);
 			}
 		}
 		if(lib_cnt == 1){
@@ -245,9 +259,10 @@ private:
 	void MergeRen(int v_base, int v_add);
 	void RemoveRen(int v);
 	bool IsSelfAtariNakade(int v) const;
+	bool IsSelfAtari(int pl, int v) const;
 	void UpdatePrevPtn(int v);
 	void SubPrevPtn();
-	void AddProbWeight(int pl, int v, double add_w_prob);
+	void AddProb(int pl, int v, double add_prob);
 	void UpdateProbAll();
 	void AddProbDist(int v);
 	void SubProbDist();
@@ -339,9 +354,6 @@ public:
 	// パスをした回数. (日本ルール用)
 	// Number of pass. (for Japanese rule)
 	int pass_cnt[2];
-	
-	// 確率パラメータ. Sum of probability parameters for each turn/vertex.
-	double w_prob[2][EBVCNT];
 
 	// 行ごとの確率の小計. Sum of probability for each rank.
 	double sum_prob_rank[2][BSIZE];
@@ -356,7 +368,6 @@ public:
 	bool IsSeki(int v) const;
 	void PlayLegal(int v);
 	void ReplaceProb(int pl, int v, double new_prob);
-	void ReplaceProbWeight(int pl, int v, double new_w_prob);
 	void RecalcProbAll();
 	void AddProbPtn12();
 	int SelectRandomMove();

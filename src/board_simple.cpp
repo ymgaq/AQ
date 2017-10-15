@@ -34,39 +34,6 @@
 	v_nbr = v_origin - EBSIZE - 1;		d_nbr = 7; d_opp = 5;		block;
 
 
-/**
- *  N次元配列の初期化。第2引数の型のサイズごとに初期化していく。
- *  Initialize N-d array.
- */
-template<typename A, size_t N, typename T>
-inline void FillArray(A (&array)[N], const T &val){
-
-    std::fill( (T*)array, (T*)(array+N), val );
-
-}
-
-
-/**
- *  expの近似関数
- *  テイラー展開e^x = lim[n->inf](1+x/n)^nを利用
- *  n=256=2^8の場合を利用
- *
- *  Approximate function of std::exp.
- *  e^x = lim[n->inf](1+x/n)^n
- *  where n = 2^8 = 256.
- */
-inline double exp256(double x){
-
-	double x1 = 1.0 + x / 256.0;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	return x1;
-
-}
-
-constexpr double inv_temp = 1.0;
-
-
 BoardSimple::BoardSimple() {
 
 	Clear();
@@ -336,8 +303,9 @@ bool BoardSimple::IsSeki(int v) const{
 
 			// 呼吸点が2でない or サイズが1のとき -> false
 			// Return false when the liberty number is not 2 or the size if 1.
-			if(!ptn[v].IsPreAtari(i) ||
-				ren[ren_idx[v_nbr]].size == 1) return false;
+			if(!ptn[v].IsPreAtari(i)) return false;
+			else if(ren[ren_idx[v_nbr]].size == 1 &&
+					ptn[v].StoneCnt(color[v_nbr] - 2) == 1)	return false;
 
 			nbr_ren_idxs.push_back(ren_idx[v_nbr]);
 		}
@@ -353,7 +321,7 @@ bool BoardSimple::IsSeki(int v) const{
 	int lib_cnt = 0;
 	for(auto lbt: lib_bits_tmp){
 		if(lbt != 0){
-			lib_cnt += (int)_mm_popcnt_u64(lbt);
+			lib_cnt += (int)popcnt64(lbt);
 		}
 	}
 
@@ -787,7 +755,7 @@ inline bool BoardSimple::IsSelfAtariNakade(int v) const{
 void BoardSimple::PlayLegal(int v) {
 
 	assert(v <= PASS);
-	assert(color[v] == 0);
+	assert(v == PASS || color[v] == 0);
 	assert(v != ko);
 
 	// 1.  差分情報を初期化

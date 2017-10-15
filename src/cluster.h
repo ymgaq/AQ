@@ -1,11 +1,14 @@
 #pragma once
 
 #include <cstdio>
-#include <unistd.h>
 #include <string>
 #include <vector>
 #include <signal.h>
-#include <sys/wait.h>
+
+#ifndef _WIN32
+	#include <unistd.h>
+	#include <sys/wait.h>
+#endif
 
 #include "search.h"
 

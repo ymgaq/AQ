@@ -1,5 +1,10 @@
 #pragma once
 
+#ifdef _WIN32
+	#define COMPILER_MSVC
+	#define NOMINMAX
+#endif
+
 #include <vector>
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/public/session.h"

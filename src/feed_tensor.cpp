@@ -185,7 +185,7 @@ void FeedTensor::Set(Board& b, int nv){
 			int lib_cnt = 0;
 			for(int k=0;k<6;++k){
 				if(lib_bits[k] != 0){
-					lib_cnt += (int)_mm_popcnt_u64(lib_bits[k]);
+					lib_cnt += (int)popcnt64(lib_bits[k]);
 				}
 			}
 
@@ -290,7 +290,7 @@ void FeedTensor::Load(Board& b) {
 						b.ren[b.ren_idx[v]].lib_cnt = 0;
 						for(int i=0;i<6;++i){
 							b.ren[b.ren_idx[v]].lib_bits[i] |= b.ren[b.ren_idx[v_nbr1]].lib_bits[i];
-							b.ren[b.ren_idx[v]].lib_cnt += (int)_mm_popcnt_u64(b.ren[b.ren_idx[v]].lib_bits[i]);
+							b.ren[b.ren_idx[v]].lib_cnt += (int)popcnt64(b.ren[b.ren_idx[v]].lib_bits[i]);
 						}
 						if(b.ren[b.ren_idx[v]].lib_cnt == 1){
 							for(int i=0;i<6;++i){
@@ -313,7 +313,7 @@ void FeedTensor::Load(Board& b) {
 						b.ren[b.ren_idx[v_nbr1]].lib_cnt = 0;
 						for(int i=0;i<6;++i){
 							b.ren[b.ren_idx[v_nbr1]].lib_bits[i] |= b.ren[b.ren_idx[v]].lib_bits[i];
-							b.ren[b.ren_idx[v_nbr1]].lib_cnt += (int)_mm_popcnt_u64(b.ren[b.ren_idx[v_nbr1]].lib_bits[i]);
+							b.ren[b.ren_idx[v_nbr1]].lib_cnt += (int)popcnt64(b.ren[b.ren_idx[v_nbr1]].lib_bits[i]);
 						}
 						if(b.ren[b.ren_idx[v_nbr1]].lib_cnt == 1){
 							for(int i=0;i<6;++i){
@@ -374,8 +374,8 @@ void FeedTensor::Load(Board& b) {
 			b.ren[b.ren_idx[v + 1]].lib_cnt == 2,
 			b.ren[b.ren_idx[v - EBSIZE]].lib_cnt == 2,
 			b.ren[b.ren_idx[v - 1]].lib_cnt == 2);
-		b.ReplaceProbWeight(0, v, b.ptn[v].GetProb3x3(0, false));
-		b.ReplaceProbWeight(1, v, b.ptn[v].GetProb3x3(1, false));
+		b.ReplaceProb(0, v, prob_dist_base[v] * b.ptn[v].GetProb3x3(0, false));
+		b.ReplaceProb(1, v, prob_dist_base[v] * b.ptn[v].GetProb3x3(1, false));
 
 		if (feature[etor[v]][47] == 0 &&
 			b.IsLegal(b.my, v) &&

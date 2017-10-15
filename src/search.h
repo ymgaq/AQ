@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <mutex>
+#include <stdlib.h>
 
 #include "board.h"
 #include "playout.h"
@@ -13,6 +14,8 @@
 #include "nueral_net.h"
 #include "node.h"
 
+// Flag to use only CPU.
+//#define CPU_ONLY
 
 /**************************************************************
  *
@@ -37,9 +40,13 @@ public:
 
 	// 置換表のサイズ
 	// Size of the transposition table.
-	const int node_limit = 65537;		// ~2.6GB
-	// const int node_limit = 32771;	// ~1.3GB
-	// const int node_limit = 16411;	// ~650MB
+#ifndef CPU_ONLY
+	const int node_limit = 65537;	// ~2.6GB
+	//const int node_limit = 32771;	// ~1.3GB
+	//const int node_limit = 16411;	// ~650MB
+#else
+	const int node_limit = 16411;	// ~650MB
+#endif
 
 	std::unordered_map<int64, int> node_hash_list;
 
@@ -75,6 +82,7 @@ public:
 
 	double komi;
 	std::atomic<int> move_cnt;
+	std::atomic<int> node_move_cnt;
 	int expand_cnt;
 	LGR lgr;
 	Statistics stat;
@@ -86,10 +94,11 @@ public:
 	std::atomic<bool> stop_think;
 
 	std::string log_path;
+	bool live_best_sequence;
 
 	Tree();
-	Tree(std::vector<std::string>& sl_path, std::vector<std::string>& vl_path);
-	void SetGPU(std::vector<std::string>& sl_path, std::vector<std::string>& vl_path);
+	Tree(std::string sl_path, std::string vl_path, std::vector<int>& gpu_list);
+	void SetGPU(std::string sl_path, std::string vl_path, std::vector<int>& gpu_list);
 	void InitBoard();
 	void Clear();
 
@@ -109,11 +118,14 @@ public:
 	int SearchTree(Board& b, double time_limit, double& win_rate,
 					bool is_errout, bool is_ponder=false);
 
-	void ThreadSearchBranch(Board& b, double time_limit, bool is_ponder=false);
+	void ThreadSearchBranch(Board& b, double time_limit, int cpu_idx, bool is_ponder=false);
 	void ThreadEvaluate(double time_limit, int gpu_idx, bool is_ponder=false);
 	void ParallelSearch(double time_limit, Board& b, bool is_ponder);
 
 	void PrintResult(Board& b);
+	std::string BestSequence(int node_idx, int head_move, int max_move=7);
+	void PrintGFX(std::ostream& ost);
+	void PrintChildInfo(int node_idx, std::ostream& ost);
 
 };
 
@@ -134,3 +146,4 @@ extern bool cfg_mimic;
 extern bool never_resign;
 extern std::string resume_sgf_path;
 extern std::string pb_dir;
+extern std::string spl_str;

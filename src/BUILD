@@ -4,5 +4,5 @@ cc_binary(
   deps = [
     "//tensorflow/core:tensorflow",
   ],
-  copts = ["-O3", "-msse4.2", ]
+  copts = ["-O3", "-msse4.2", "-DNDEBUG",]
 )

@@ -436,11 +436,11 @@ int ImportSGFList(string folder, std::vector<SgfData>& sgf_list) {
 	if (*itr != '\\') ss << '\\';
 	string path = ss.str();
 	ss << "*.sgf";
-	wchar_t* wc = new wchar_t[1024];
+	//wchar_t* wc = new wchar_t[1024];
 	size_t converted_char = 0;
-	mbstowcs_s(&converted_char, wc, 1024, ss.str().c_str(), _TRUNCATE);
-
-	h_find = FindFirstFile(wc, &fd);
+	//mbstowcs_s(&converted_char, wc, 1024, ss.str().c_str(), _TRUNCATE);
+	h_find = FindFirstFile(ss.str().c_str(), &fd);
+	//h_find = FindFirstFile(wc, &fd);
 
 	// ŒŸõŽ¸”s
 	if (h_find == INVALID_HANDLE_VALUE) {
@@ -452,9 +452,10 @@ int ImportSGFList(string folder, std::vector<SgfData>& sgf_list) {
 		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 			&& !(fd.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN))
 		{
-			char *file = new char[1024];
-			wcstombs_s(&converted_char, file, 1024, fd.cFileName, _TRUNCATE);
-			string str = file;
+			//char *file = new char[1024];
+			//wcstombs_s(&converted_char, file, 1024, fd.cFileName, _TRUNCATE);
+			//string str = file;
+			string str = fd.cFileName;
 			string full_path = path + str;
 
 			SgfData tmp_sgf_data;

@@ -44,26 +44,27 @@ void ReadConfiguration(int argc, char **argv){
 				str = str.substr(head);
 				if(str.substr(0,1) == " ") str = str.substr(1);
 			}
-			else continue;
+			else continue;		
 
 			switch(line_cnt){
 				case 0:  cfg_gpu_cnt 	= stoi(str); break;
 				case 1:  cfg_thread_cnt 	= stoi(str); break;
 				case 2:  cfg_main_time 	= stod(str); break;
 				case 3:  cfg_byoyomi 	= stod(str); break;
-				case 4:  need_time_controll = (str == "true" || str == "True"); break;
-				case 5:  japanese_rule 	= (str == "true" || str == "True"); break;
+				case 4:  need_time_controll = (str == "true" || str == "on"); break;
+				case 5:  japanese_rule 	= (str == "true" || str == "on"); break;
 				case 6:  cfg_komi 		= stod(str); break;
 				case 7:  cfg_sym_idx 	= stoi(str); break;
-				case 8:  cfg_mimic 		= (str == "true" || str == "True"); break;
-				case 9:  never_resign 	= (str == "true" || str == "True"); break;
-				case 10: self_match 	= (str == "true" || str == "True"); break;
-				case 11: save_log 		= (str == "true" || str == "True"); break;
-				case 12: is_master 		= (str == "true" || str == "True"); break;
-				case 13: is_worker 		= (str == "true" || str == "True"); break;
+				case 8:  cfg_mimic 		= (str == "true" || str == "on"); break;
+				case 9:  never_resign 	= (str == "true" || str == "on"); break;
+				case 10: self_match 	= (str == "true" || str == "on"); break;
+				case 11: save_log 		= (str == "true" || str == "on"); break;
+				case 12: is_master 		= (str == "true" || str == "on"); break;
+				case 13: is_worker 		= (str == "true" || str == "on"); break;
 				case 14: pb_dir 		= str; break;
 				case 15: resume_sgf_path 	= str; break;
 				case 16: cfg_worker_cnt 	= stoi(str); break;
+				case 17: use_pondering 	= (str == "true" || str == "on"); break;
 				default: break;
 			}
 			++line_cnt;
@@ -81,7 +82,11 @@ void SelfMatch() {
 	int next_move = PASS;
 	int prev_move = VNULL;
 	double win_rate = 0.5;
-	std::string log_path = "./log/log_self.txt";
+#ifdef _WIN32
+	std::string log_path = "log\\0.txt";
+#else
+	std::string log_path = "log/0.txt";
+#endif
 	tree.log_path = log_path;
 
 	for(int i=0;i<1;++i){

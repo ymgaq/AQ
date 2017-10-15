@@ -77,9 +77,6 @@ int DistEdge(int v){
  */
 void ImportProbDist() {
 
-	// ソフトマックス温度の逆数。>1で勾配が急になる
-	// Reciprocal of the softmax temperature.
-	double rec_temp = 1.0;
 	std::ifstream ifs("prob_dist.txt");
 	if (ifs.fail()) cerr << "file could not be opened: prob_dist.txt" << endl;
 
@@ -91,23 +88,23 @@ void ImportProbDist() {
 		for (int j=0;j<17;j++) {
 			for (int k=0;k<2;++k) {
 				getline(iss, prob_str, ',');
-				prob_dist[i][j][k] = stod(prob_str) * rec_temp;
+				prob_dist[i][j][k] = stod(prob_str);
 			}
 		}
 	}
-
 
 	prob_dist_base.fill(0.0);
 
 	// 学習から求めた盤端からの距離パラメータ
 	// Distance parameters from the outer boundary.
-	std::array<double, 10> prob_dist_edge ={	-0.801039, -0.193638, 0.494272,
-												0.228974, -0.0417315, 0.00792263,
-												0.0806968, 0.0666801, 0.0611895,
-												0.0966733							};
+	std::array<double, 10> prob_dist_edge =
+		{	0.448862, 0.823956, 1.639304,
+			1.257309, 0.959127, 1.007954,
+			1.084042, 1.068953, 1.063100,
+			1.101500	};
 
 	for(auto i:rtoe){
-		prob_dist_base[i] = prob_dist_edge[DistEdge(i) - 1] * rec_temp;
+		prob_dist_base[i] = prob_dist_edge[DistEdge(i) - 1];
 	}
 
 }

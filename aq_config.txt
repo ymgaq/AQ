@@ -1,28 +1,29 @@
 ### Hardware setting ###
-# Set number of 1-2 for 'gpu count'.
+# Set number of 1-8 for 'gpu count'.
 # 'thread count' is number of the total usable threads.
 -gpu count =1
 -thread count =4
 
 ### Time contorol setting ###
-# If using 'left_time' command via GTP,
-# set 'time controll' to false.
+# If using 'time_left' command via GTP,
+# set 'time controll' to 'off'.
 -main　time[sec] =0
 -byoyomi[sec] =5
--time controll =true
+-time controll =on
 
 ### Thinking setting ###
--japanese rule =false
+-japanese rule =off
 -komi =7.5
 -symmetrical index =0
--mimic go =false
--never resign =fasle
+-mimic go =off
+-never resign =off
 
 ### Others ###
--self match =false
--save log =true
--master =false
--worker =false
+-self match =off
+-save log =on
+-master =off
+-worker =off
 -pb path =pb
 -resume sgf path =
--woker count =1
+-worker count =1
+-use pondering =on

@@ -1,6 +1,8 @@
 #include <algorithm>
 #include <thread>
 #include <stdarg.h>
+#include <iomanip>
+#include <fstream>
 
 #include "search.h"
 
@@ -24,25 +26,13 @@ bool never_resign = false;
 std::string resume_sgf_path = "";
 std::string pb_dir = "";
 
-
-/**
- *  expの近似関数
- *  テイラー展開e^x = lim[n->inf](1+x/n)^nを利用
- *  n=256=2^8の場合を利用
- *
- *  Approximate function of std::exp.
- *  e^x = lim[n->inf](1+x/n)^n
- *  where n = 2^8 = 256.
- */
-inline double exp256(double x){
-
-	double x1 = 1.0 + x / 256.0;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	return x1;
-
-}
-
+#ifdef _WIN32
+	std::string spl_str = "\\";
+	#undef max
+	#undef min
+#else
+	std::string spl_str = "/";
+#endif
 
 /**
  *  弱いCASを繰り返して加算する double用
@@ -60,53 +50,69 @@ T FetchAdd(std::atomic<T> *obj, T arg) {
 Tree::Tree(){
 
 	Tree::Clear();
-	std::vector<std::string> sl_path;
-	std::vector<std::string> vl_path;
+	std::string sl_path;
+	std::string vl_path;
 	std::stringstream ss;
 
-	for(int i=0;i<gpu_cnt;++i){
-		ss.str("");
-		if(pb_dir != "") ss << pb_dir << "/";
-		ss << "sl_" << i << ".pb";
-		sl_path.push_back(ss.str());
+	if(pb_dir != "") ss << pb_dir << spl_str;
+	ss << "sl.pb";
+	sl_path = ss.str();
 
-		ss.str("");
-		if(pb_dir != "") ss << pb_dir << "/";
-		ss << "vl_" << i << ".pb";
-		vl_path.push_back(ss.str());
-	}
+	ss.str("");
+	if(pb_dir != "") ss << pb_dir << spl_str;
+	ss << "vl.pb";
+	vl_path = ss.str();
 
-	SetGPU(sl_path, vl_path);
+	std::vector<int> gpu_list;
+	for(int i=0;i<gpu_cnt;++i) gpu_list.push_back(i);
+
+	SetGPU(sl_path, vl_path, gpu_list);
 
 }
 
 
-Tree::Tree(std::vector<std::string>& sl_path, std::vector<std::string>& vl_path){
+Tree::Tree(std::string sl_path, std::string vl_path, std::vector<int>& gpu_list){
 
 	Tree::Clear();
-	SetGPU(sl_path, vl_path);
+	SetGPU(sl_path, vl_path, gpu_list);
 
 }
 
 
-void Tree::SetGPU(std::vector<std::string>& sl_path, std::vector<std::string>& vl_path){
+void Tree::SetGPU(std::string sl_path, std::string vl_path, std::vector<int>& gpu_list){
 
+	// Suppress tensorflow information and warnings.
+	if(!self_match) putenv("TF_CPP_MIN_LOG_LEVEL=2");
+	
 	{
 		using namespace tensorflow;
 
 		sess_policy.clear();
 		sess_value.clear();
 
-		for(int i=0;i<gpu_cnt;++i){
+		if(gpu_list.empty())
+			for(int i=0;i<gpu_cnt;++i) gpu_list.push_back(i);
+
+		for(int i=0, n=(int)gpu_list.size();i<n;++i){
+
+#ifdef CPU_ONLY
+			const std::string device_name = "/cpu:" + std::to_string(gpu_list[i]);
+#else
+			const std::string device_name = "/gpu:" + std::to_string(gpu_list[i]);
+#endif //CPU_ONLY
 
 			Session* sess_p(NewSession(SessionOptions()));
 			GraphDef graph_p;
-			ReadBinaryProto(Env::Default(), sl_path[i], &graph_p);
+
+			ReadBinaryProto(Env::Default(), sl_path, &graph_p);
+			graph::SetDefaultDevice(device_name, &graph_p);
 			sess_p->Create(graph_p);
 
 			Session* sess_v(NewSession(SessionOptions()));
 			GraphDef graph_v;
-			ReadBinaryProto(Env::Default(), vl_path[i], &graph_v);
+
+			ReadBinaryProto(Env::Default(), vl_path, &graph_v);
+			graph::SetDefaultDevice(device_name, &graph_v);
 			sess_v->Create(graph_v);
 
 			sess_policy.push_back(sess_p);
@@ -120,18 +126,25 @@ void Tree::SetGPU(std::vector<std::string>& sl_path, std::vector<std::string>& v
 
 void Tree::Clear(){
 
-	thread_cnt = cfg_thread_cnt;
+#ifdef CPU_ONLY
+	thread_cnt = 2;
+	gpu_cnt = 1;
+	expand_cnt = 64;
+#else
+	thread_cnt = (cfg_thread_cnt > cfg_gpu_cnt) ? cfg_thread_cnt : cfg_gpu_cnt + 1;
+	gpu_cnt = cfg_gpu_cnt;
+	expand_cnt = 12;
+#endif // CPU_ONLY
+
 	main_time = cfg_main_time;
 	byoyomi = cfg_byoyomi;
 	komi = cfg_komi;
-	gpu_cnt = cfg_gpu_cnt;
 	sym_idx = cfg_sym_idx;
 
 	vloss_cnt = 3;
 	lambda = 0.7;
-	cp = 3.0;
+	cp = 2.0;
 	policy_temp = 0.7;
-	expand_cnt = 18;
 
 	Tree::InitBoard();
 
@@ -139,6 +152,7 @@ void Tree::Clear(){
 	node.resize(node_limit);
 
 	log_path = "";
+	live_best_sequence = false;
 	stop_think = false;
 
 }
@@ -164,6 +178,7 @@ void Tree::InitBoard(){
 	left_time = main_time;
 	extension_cnt = 0;
 	move_cnt = 0;
+	node_move_cnt = 0;
 
 }
 
@@ -289,6 +304,7 @@ int Tree::CreateNode(Board& b) {
 		pn->is_policy_eval = false;
 		pn->hash = hash_b;
 		pn->pl = b.my;
+		pn->move_cnt = b.move_cnt;
 		pn->prev_move[0] = b.prev_move[b.her];
 		pn->prev_move[1] = b.prev_move[b.my];
 
@@ -297,59 +313,49 @@ int Tree::CreateNode(Board& b) {
 
 		int my = b.my;
 		int her = b.her;
-		memcpy(pn->w_prob[my], b.w_prob[my], sizeof(pn->w_prob[my]));
-		memcpy(pn->w_prob[her], b.w_prob[her], sizeof(pn->w_prob[her]));
+		double sum_prob = 0.0;
 
 		int prev_move_[3] = {b.prev_move[her], b.prev_move[my], PASS};
 		if(b.move_cnt >= 3) prev_move_[2] = b.move_history[b.move_cnt - 3];
 
+		for(int i=0;i<EBVCNT;++i){
+			pn->prob_roll[my][i] = 0;
+			pn->prob_roll[her][i] = 0;
+		}
+
 		for(int i=0, n=b.empty_cnt;i<n;++i){
 			int v = b.empty[i];
-			double my_dp = 0.0;
-			double her_dp = 0.0;
-			my_dp += prob_dist[0][DistBetween(v, prev_move_[0])][0];
-			my_dp += prob_dist[1][DistBetween(v, prev_move_[1])][0];
-			her_dp += prob_dist[0][DistBetween(v, prev_move_[2])][0];
-			her_dp += prob_dist[1][DistBetween(v, prev_move_[1])][0];
+			double my_dp = 1.0;
+			double her_dp = 1.0;
+			my_dp *= prob_dist[0][DistBetween(v, prev_move_[0])][0];
+			my_dp *= prob_dist[1][DistBetween(v, prev_move_[1])][0];
+			her_dp *= prob_dist[0][DistBetween(v, prev_move_[2])][0];
+			her_dp *= prob_dist[1][DistBetween(v, prev_move_[1])][0];
 			Pattern3x3 ptn12 = b.ptn[v];
 			ptn12.SetColor(8, b.color[std::min(EBVCNT - 1, (v + EBSIZE * 2))]);
 			ptn12.SetColor(9, b.color[v + 2]);
 			ptn12.SetColor(10, b.color[std::max(0, (v - EBSIZE * 2))]);
 			ptn12.SetColor(11, b.color[v - 2]);
 			if(prob_ptn12.find(ptn12.bf) != prob_ptn12.end()){
-				my_dp = prob_ptn12[ptn12.bf][my];
-				her_dp = prob_ptn12[ptn12.bf][her];
+				my_dp *= prob_ptn12[ptn12.bf][my];
+				her_dp *= prob_ptn12[ptn12.bf][her];
 			}
 
-			if(pn->w_prob[my][v] == 0){
-				pn->prob_roll[my][v] = 0.0;
-			}
-			else{
-				FetchAdd(&pn->w_prob[my][v], my_dp);
-				pn->prob_roll[my][v] = exp256(pn->w_prob[my][v]);
-			}
-			if(pn->w_prob[her][v] == 0){
-				pn->prob_roll[her][v] = 0.0;
-			}
-			else{
-				FetchAdd(&pn->w_prob[her][v], her_dp);
-				pn->prob_roll[her][v] = exp256(pn->w_prob[her][v]);
-			}
+			pn->prob_roll[my][v] = b.prob[my][v] * my_dp;
+			pn->prob_roll[her][v] = b.prob[her][v] * her_dp;
 
+			sum_prob += b.prob[my][v] * my_dp;
 		}
 
-		memcpy(pn->prob, pn->prob_roll[my], sizeof(pn->prob));
-		double sum_prob = 0.0;
-		for(int i=0;i<EBVCNT;++i) sum_prob += pn->prob[i].load();
 		double inv_sum = 1.0;
-		if(sum_prob != 0.0) inv_sum = 1.0 / sum_prob;
+		if(sum_prob != 0) inv_sum = 1.0 / sum_prob;
+		for(int i=0;i<EBVCNT;++i) pn->prob[i] = (double)pn->prob_roll[my][i] * inv_sum;
 
-		int v;
 		std::vector<std::pair<double, int>> prob_list;
-		for (int i = 0; i < b.empty_cnt; ++i) {
-			v = b.empty[i];
+		for(int i=0;i<b.empty_cnt;++i) {
+			int v = b.empty[i];
 			if(	!b.IsLegal(b.my,v)	||
-				b.IsEyeShape(b.my,v)	||
+				b.IsEyeShape(b.my,v)||
 				b.IsSeki(v)) 	continue;
 
 			prob_list.push_back(std::make_pair(pn->prob[v].load() * inv_sum, v));
@@ -468,16 +474,47 @@ int Tree::CollectNodeIndex(int node_idx, int depth, std::unordered_set<int>& nod
 
 
 /**
- *  ノード以下のインデックスを調べ、それ以外を消去
- *  Delete indexes other than that connected to the root node. *
+ *  ノード以下のインデックスを調べ、ノード使用率を減らす
+ *  Delete indexes to reduce node usage rate. (30%-60%)
  */
 void Tree::DeleteNodeIndex(int node_idx){
 
-	// 1. node_idxに繋がるインデックスを調べ、それ以外を消去
-	//    Delete indexes other than that connected to the root node.
-	std::unordered_set<int> node_list;
-	CollectNodeIndex(node_idx, 0, node_list);
+	// 1. ノード使用率が60%未満なら削除しない
+	//    Do not delete nodes if node utilization is less than 60%.
+	if(node_cnt < 0.6 * node_limit) return;
 
+	// 2. node_idxに繋がるインデックスを調べる
+	//    Find indexes connecting to the root node.
+	std::unordered_set<int> under_root;
+	CollectNodeIndex(node_idx, 0, under_root);
+
+	// 3. ノード使用率が30%以下になるまで最古のノード手数を更新する
+	//    Update the oldest move count of the nodes until the node
+	//    usage becomes 30% or less.
+	std::unordered_set<int> node_list(under_root);
+
+	if((int)node_list.size() < 0.3 * node_limit){
+		for(int i=0, n=move_cnt-node_move_cnt;i<n;++i){
+			++node_move_cnt;
+
+			for(int j=0;j<node_limit;++j){
+				if(node[j].move_cnt >= node_move_cnt){
+					node_list.insert(j);
+				}
+			}
+
+			if((int)node_list.size() < 0.3 * node_limit){
+				break;
+			}
+			else{
+				node_list.clear();
+				node_list = under_root;
+			}
+		}
+	}
+
+	// 4. node_listにない古いノードを削除
+	//    Delete old node not in node_list.
 	{
 		std::lock_guard<std::mutex> lock(mtx_node);
 		for (int i = 0; i < node_limit; ++i) {
@@ -493,7 +530,7 @@ void Tree::DeleteNodeIndex(int node_idx){
 		}
 	}
 
-	// 2. policy_queから削除
+	// 5. policy_queから削除
 	//    Remove entries from policy_que.
 	std::deque<PolicyEntry> remain_pque;
 	for(auto i:policy_que){
@@ -504,7 +541,7 @@ void Tree::DeleteNodeIndex(int node_idx){
 	policy_que.swap(remain_pque);
 	policy_que_cnt = (int)policy_que.size();
 
-	// 3. value_queから削除
+	// 6. value_queから削除
 	//    Remove entries from value_que.
 	std::deque<ValueEntry> remain_vque;
 	for(auto i:value_que){
@@ -542,11 +579,11 @@ void Tree::DeleteNodeIndex(int node_idx){
  */
 int Tree::UpdateRootNode(Board&b){
 
+	move_cnt = b.move_cnt;
 	int node_idx = CreateNode(b);
 
 	if(root_node_idx != node_idx) DeleteNodeIndex(node_idx);
 	root_node_idx = node_idx;
-	move_cnt = b.move_cnt;
 
 	return node_idx;
 
@@ -684,8 +721,8 @@ double Tree::SearchBranch(Board& b, int node_idx, double& value_result,
 	// 5. ノード展開するかを判断
 	//    Check whether the next node can be expanded.
 	bool expand_node = false;
-	if(	!need_rollout && (pc->is_next == false	||
-		(int64)pc->next_hash != (int64)npn->hash) )
+	if(	!need_rollout &&
+		(pc->is_next == false || (int64)pc->next_hash != (int64)npn->hash) )
 	{
 		// 置換表が8割埋まっているときは新規作成しない
 		// New node is not chreated when the transposition table is filled by 80%.
@@ -752,23 +789,14 @@ double Tree::SearchBranch(Board& b, int node_idx, double& value_result,
 			if(pc->is_next && (int64)pc->next_hash == (int64)npn->hash){
 				for(int i=0, n=b.empty_cnt;i<n;++i){
 					int v = b.empty[i];
-					b.w_prob[0][v] = (double)npn->w_prob[0][v];
-					b.w_prob[1][v] = (double)npn->w_prob[1][v];
-					b.prob[0][v] = (double)npn->prob_roll[0][v];
-					b.prob[1][v] = (double)npn->prob_roll[1][v];
-				}
-				for(int i=0;i<BSIZE;++i){
-					b.sum_prob_rank[0][i] = 0.0;
-					b.sum_prob_rank[1][i] = 0.0;
-					for(int j=0;j<BSIZE;++j){
-						b.sum_prob_rank[0][i] += b.prob[0][rtoe[xytor[j][i]]];
-						b.sum_prob_rank[1][i] += b.prob[1][rtoe[xytor[j][i]]];
-					}
+					b.ReplaceProb(0, v, (double)npn->prob_roll[0][v]);
+					b.ReplaceProb(1, v, (double)npn->prob_roll[1][v]);
 				}
 			}
 			// c. プレイアウトし、結果を[-1.0, 1.0]に規格化
 			//    Roll out and normalize the result to [-1.0, 1.0].
-			rollout_result = -2.0 * ((double)PlayoutLGR(b, lgr_, komi) + win_bias);
+			rollout_result = -2.0 * ((double)PlayoutLGR(b, lgr_, stat_, komi) + win_bias);
+			//rollout_result = -2.0 * ((double)PlayoutLGR(b, lgr_, komi) + win_bias);
 		}
 	}
 	else{
@@ -809,19 +837,16 @@ double Tree::SearchBranch(Board& b, int node_idx, double& value_result,
 void PrintLog(std::string log_path, const char* output_text, ...){
 
 	va_list args;
+	char buf[1024];
 
 	va_start(args, output_text);
-	vfprintf(stderr, output_text, args);
-	va_end(args);
+	vsprintf(buf, output_text, args);
+	va_end(args);	
 
-	va_start(args, output_text);
-	if(log_path != ""){
-		FILE *pf;
-		pf = fopen(log_path.c_str(), "aw");
-		vfprintf(pf, output_text, args);
-		fclose(pf);
-	}
-	va_end(args);
+	string str(buf);
+	std::cerr << str;
+	std::ofstream ofs(log_path, std::ios::app);
+	ofs << str;
 
 }
 
@@ -902,10 +927,12 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 		return PASS;
 	}
 
-	// 3. lambdaを進行度に合わせて調整 (0.7 -> 0.3)
+	// 3. lambdaを進行度に合わせて調整 (0.8 -> 0.5)
 	//    Adjust lambda to progress.
-	lambda = 0.7 - std::min(0.4, std::max(0.0, ((double)b.move_cnt - 160) / 500));
-	//lambda = 1.0;
+	lambda = 0.8 - std::min(0.3, std::max(0.0, ((double)b.move_cnt - 160) / 600));
+	//lambda = 0.7 - std::min(0.4, std::max(0.0, ((double)b.move_cnt - 160) / 500));
+	//cp = 3.0;
+	//expand_cnt = 18;
 
 	// 4. root nodeが未評価のとき、確率分布を評価する
 	//    If the root node is not evaluated, evaluate the probability.
@@ -931,7 +958,6 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 	int rc0_game_cnt = std::max((int)rc[0]->value_cnt, (int)rc[0]->rollout_cnt);
 	int rc1_game_cnt = std::max((int)rc[1]->value_cnt, (int)rc[1]->rollout_cnt);
 
-
 	// 7-1. 持ち時間が残り少ないときは探索しない
 	//      Return best move without searching when time is running out.
 	if(!is_ponder &&
@@ -948,9 +974,8 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 		if(rc0_game_cnt < 1000){
 			int v = pn->children[pn->prob_order[0]].move;
 			if(is_errout){
-				PrintLog(log_path, "move cnt=%d lambda=%.2f\n", b.move_cnt, lambda);
-				PrintLog(log_path, "emagency mode: remaining time=%.1f[sec], move=%s, prob=.1%f[%%]\n",
-						(double)left_time, CoordinateString(v).c_str(), pn->children[pn->prob_order[0]].prob * 100);
+				PrintLog(log_path, "move cnt=%d: emagency mode: left time=%.1f[sec], move=%s, prob=.1%f[%%]\n",
+						b.move_cnt + 1, (double)left_time, CoordinateString(v).c_str(), pn->children[pn->prob_order[0]].prob * 100);
 			}
 			win_rate = 0.5;
 			return v;
@@ -976,7 +1001,8 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 		{
 			// Skip search.
 			if(is_errout){
-				PrintLog(log_path, "%d[node] remaining time=%.1f[sec]\n", node_cnt, (double)left_time);
+				PrintLog(log_path, "move cnt=%d: left time=%.1f[sec]\n%d[nodes]\n", 
+					b.move_cnt + 1, (double)left_time, node_cnt);
 			}
 		}
 		else
@@ -1063,12 +1089,14 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 			auto t2 = std::chrono::system_clock::now();
 			auto elapsed_time = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()/1000;
 			if(is_errout){
-				PrintLog(log_path, "%d[node] %.1f[sec] %d[playouts] %.1f[pps/thread]\nremaining time=%.1f[sec]\n",
+				PrintLog(log_path, "move cnt=%d: left time=%.1f[sec]\n%d[nodes] %.1f[sec] %d[playouts] %.1f[pps/thread]\n",
+						b.move_cnt + 1,
+						std::max(0.0, (double)left_time - elapsed_time),
 						node_cnt,
 						elapsed_time,
 						(pn->total_game_cnt - prev_game_cnt),
-						(pn->total_game_cnt - prev_game_cnt) / elapsed_time / (thread_cnt - gpu_cnt),
-						std::max(0.0, (double)left_time - elapsed_time));
+						(pn->total_game_cnt - prev_game_cnt) / elapsed_time / (thread_cnt - gpu_cnt)
+						);
 			}
 
 		}
@@ -1118,37 +1146,12 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
 	// 11. 上位の子ノードの探索結果を出力する.
 	//     Output information of upper child nodes.
 	if (is_errout) {
-		PrintLog(log_path, "move cnt=%d lambda=%.2f\n", b.move_cnt + 1, lambda);
-		PrintLog(log_path, "total games=%d, evaluated policy=%d(%d), evaluated value=%d(%d)\n",
+		PrintLog(log_path, "total games=%d, evaluated policy=%d(%d), value=%d(%d)\n",
 				  (int)pn->total_game_cnt, eval_policy_cnt, (int)policy_que_cnt, eval_value_cnt, (int)value_que_cnt);
 
-		for(int i=0;i<std::min((int)pn->child_cnt, 9);++i) {
-
-			Child* pc = rc[i];
-			int game_cnt = std::max((int)pc->rollout_cnt, (int)pc->value_cnt);
-
-			if (game_cnt == 0) break;
-
-			double rollout_rate = (pc->rollout_win / std::max(1, (int)pc->rollout_cnt) + 1) / 2;
-			double value_rate = (pc->value_win / std::max(1, (int)pc->value_cnt) + 1) / 2;
-			if(pc->value_win == 0.0) value_rate = 0;
-			if(pc->rollout_win == 0.0) rollout_rate = 0;
-
-			double rate = BranchRate(pc);
-
-			int depth = 1;
-			std::unordered_set<int> node_list;
-			if(pc->is_next){
-				depth = CollectNodeIndex((int)pc->next_idx, depth, node_list);
-			}
-
-			PrintLog(log_path, "%d: %s,\t", i + 1, CoordinateString((int)pc->move).c_str());
-			PrintLog(log_path, "game=%d, \t", game_cnt);
-			PrintLog(log_path, "%3.1f[%%](%3.2f/%3.2f),\t", rate * 100, rollout_rate, value_rate);
-			PrintLog(log_path, "value=%.2f,\t", ((double)pc->value + 1) / 2);
-			PrintLog(log_path, "prob=%3.1f[%%],\t", (double)pc->prob * 100);
-			PrintLog(log_path, "depth=%d\n", depth);
-		}
+		std::stringstream ss;
+		PrintChildInfo(root_node_idx, ss);
+		PrintLog(log_path, "%s", ss.str().c_str());
 	}
 
 	return rc[0]->move;
@@ -1159,7 +1162,7 @@ int Tree::SearchTree(	Board& b, double time_limit, double& win_rate,
  *  スレッドで探索を繰り返す
  *  Repeat searching with a single thread.
  */
-void Tree::ThreadSearchBranch(Board& b, double time_limit, bool is_ponder) {
+void Tree::ThreadSearchBranch(Board& b, double time_limit, int cpu_idx, bool is_ponder) {
 
 	Node* pn = &node[root_node_idx];
 	if(pn->child_cnt <= 1){
@@ -1179,9 +1182,17 @@ void Tree::ThreadSearchBranch(Board& b, double time_limit, bool is_ponder) {
 
 	mtx_lgr.unlock();
 
+#ifdef CPU_ONLY
+	const int max_value_cnt = 24;
+	const int max_policy_cnt = 12;
+#else
+	const int max_value_cnt = 192;
+	const int max_policy_cnt = 96;
+#endif //CPU_ONLY
+
 
 	for (;;){
-		if(value_que_cnt > 192 || policy_que_cnt > 96){
+		if(value_que_cnt > max_value_cnt || policy_que_cnt > max_policy_cnt){
 			// Wait for 1msec if the queue is full.
 			std::this_thread::sleep_for(std::chrono::microseconds(1000)); //1 msec
 		}
@@ -1228,6 +1239,13 @@ void Tree::ThreadSearchBranch(Board& b, double time_limit, bool is_ponder) {
 
 				if(stand_out || cannot_catchup)
 				{
+					stat_th -= initial_stat;
+					{
+						std::lock_guard<std::mutex> lock(mtx_lgr);
+						lgr = lgr_th;
+						stat += stat_th;
+					}
+
 					stop_think = true;
 					break;
 				}
@@ -1249,6 +1267,14 @@ void Tree::ThreadEvaluate(double time_limit, int gpu_idx, bool is_ponder) {
 	std::vector<FeedTensor> ft_list;
 	std::vector<std::array<double,EBVCNT>> prob_list;
 
+#ifdef CPU_ONLY
+	const int max_eval_value = 1;
+	const int max_eval_policy = 1;
+#else
+	const int max_eval_value = 48;
+	const int max_eval_policy = 16;
+#endif //CPU_ONLY
+
 	for (;;){
 
 		// 1. value_queを処理. Process value_que.
@@ -1257,7 +1283,7 @@ void Tree::ThreadEvaluate(double time_limit, int gpu_idx, bool is_ponder) {
 			{
 				std::lock_guard<std::mutex> lock(mtx_vque);
 				if(value_que_cnt > 0){
-					eval_cnt = std::min(48, (int)value_que_cnt);
+					eval_cnt = std::min(max_eval_value, (int)value_que_cnt);
 
 					// a. vque_thにコピー. Copy partially to vque_th.
 					vque_th.resize(eval_cnt);
@@ -1318,12 +1344,16 @@ void Tree::ThreadEvaluate(double time_limit, int gpu_idx, bool is_ponder) {
 		}
 
 		// 2. policy_queを処理. Process policy_que.
-		if(policy_que_cnt > 0){
+#ifdef CPU_ONLY
+		if(policy_que_cnt > 0 && mt_double(mt_32) < 0.25){
+#else
+		if (policy_que_cnt > 0) {
+#endif //CPU_ONLY
 			int eval_cnt = 0;
 			{
 				std::lock_guard<std::mutex> lock(mtx_pque);
 				if(policy_que_cnt > 0){
-					eval_cnt = std::min(16, (int)policy_que_cnt);
+					eval_cnt = std::min(max_eval_policy, (int)policy_que_cnt);
 					eval_policy_cnt += eval_cnt;
 
 					// a. pque_thにコピー. Copy partially to pque_th.
@@ -1383,7 +1413,7 @@ void Tree::ParallelSearch(double time_limit, Board& b, bool is_ponder){
 			ths[i] = std::thread(&Tree::ThreadEvaluate, this, time_limit, i, is_ponder);
 		}
 		else{
-			ths[i] = std::thread(&Tree::ThreadSearchBranch, this, std::ref(b_[i - gpu_cnt]), time_limit, is_ponder);
+			ths[i] = std::thread(&Tree::ThreadSearchBranch, this, std::ref(b_[i - gpu_cnt]), time_limit, i - gpu_cnt, is_ponder);
 		}
 	}
 
@@ -1413,3 +1443,131 @@ void Tree::PrintResult(Board& b){
 
 }
 
+
+std::string Tree::BestSequence(int node_idx, int head_move, int max_move){
+
+	string seq = "";
+	Node* pn = &node[node_idx];
+	if(head_move == VNULL && pn->prev_move[0] == VNULL) return seq;
+
+
+	int head_move_ = (head_move == VNULL)? (int)pn->prev_move[0] : head_move;
+	string head_str = CoordinateString(head_move_);
+	if(head_str.length() == 2) head_str += " ";
+
+	seq += head_str;
+
+	std::vector<Child*> child_list;
+	for(int i=0;i<max_move;++i){
+		if(pn->child_cnt <= 1) break;
+		SortChildren(pn, child_list);
+
+		string move_str = CoordinateString(child_list[0]->move);
+		if(move_str.length() == 2) move_str += " ";
+
+		seq += "->";
+		seq += move_str;
+
+		if(	child_list[0]->is_next &&
+			node[child_list[0]->next_idx].hash == child_list[0]->next_hash)
+		{
+			pn = &node[child_list[0]->next_idx];
+		}
+		else break;
+	}
+
+	// D4 ->D16->Q16->Q4 ->...
+	return seq;
+
+}
+
+
+void Tree::PrintGFX(std::ostream& ost){
+
+	double occupancy[BVCNT] = {0};
+	double game_cnt = std::max(1.0, (double)stat.game[2]);
+	for(int i=0;i<BVCNT;++i)
+		occupancy[i] = (stat.owner[1][rtoe[i]]/game_cnt - 0.5) * 2;
+
+	ost << "gogui-gfx:\n";
+	ost << "VAR ";
+
+	Node* pn = &node[root_node_idx];
+	std::vector<Child*> child_list;
+	for(int i=0;i<9;++i){
+		if(pn->child_cnt <= 1) break;
+		SortChildren(pn, child_list);
+
+		int move = child_list[0]->move;
+
+		string pl_str = (pn->pl == 1)? "b " : "w ";
+		ost << pl_str << CoordinateString(move) << " ";
+
+		if(move != PASS) occupancy[etor[move]] = 0;
+
+		if(	child_list[0]->is_next &&
+			node[child_list[0]->next_idx].hash == child_list[0]->next_hash)
+		{
+			pn = &node[child_list[0]->next_idx];
+		}
+		else break;
+	}
+	ost << endl;
+
+	if(stat.game[2] == 0) return;
+
+	ost << "INFLUENCE ";
+	for(int i=0;i<BVCNT;++i){
+		if(-0.2 < occupancy[i] && occupancy[i] < 0.2) continue;
+		ost << CoordinateString(rtoe[i]) << " " << occupancy[i] << " ";
+	}
+	ost << endl;
+
+}
+
+
+void Tree::PrintChildInfo(int node_idx, std::ostream& ost){
+
+	Node* pn = &node[node_idx];
+	std::vector<Child*> rc;
+	SortChildren(pn, rc);
+
+	ost << "|move|count  |value|roll |prob |depth| best sequence" << endl;
+
+	for(int i=0;i<std::min((int)pn->child_cnt, 10);++i) {
+
+		Child* pc = rc[i];
+		int game_cnt = std::max((int)pc->rollout_cnt, (int)pc->value_cnt);
+
+		if (game_cnt == 0) break;
+
+		double rollout_rate = (pc->rollout_win / std::max(1, (int)pc->rollout_cnt) + 1) / 2;
+		double value_rate = (pc->value_win / std::max(1, (int)pc->value_cnt) + 1) / 2;
+		if(pc->value_win == 0.0) value_rate = 0;
+		if(pc->rollout_win == 0.0) rollout_rate = 0;
+
+		int depth = 1;
+		string seq;
+		if(pc->is_next){
+			std::unordered_set<int> node_list;
+			depth = CollectNodeIndex((int)pc->next_idx, depth, node_list);
+			seq = BestSequence((int)pc->next_idx, (int)pc->move);
+		}
+
+		ost << "|" << std::left << std::setw(4) << CoordinateString((int)pc->move);
+		ost << "|" << std::right << std::setw(7) << std::min(9999999, game_cnt);
+		auto prc = ost.precision();
+		ost.precision(1);
+		if(pc->value_cnt == 0) ost << "|" << std::setw(5) << "N/A";
+		else ost << "|" << std::setw(5) << std::fixed << value_rate * 100;
+		if(pc->rollout_cnt == 0) ost << "|" << std::setw(5) << "N/A";
+		else ost << "|" << std::setw(5) << std::fixed << rollout_rate * 100;
+		ost << "|" << std::setw(5) << std::fixed << (double)pc->prob * 100;
+		ost.precision(prc);
+		ost << "|" << std::setw(5) << depth;
+		ost << "| " << seq;
+		ost << endl;
+
+	}
+
+}

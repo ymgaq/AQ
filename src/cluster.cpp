@@ -4,8 +4,13 @@ using std::string;
 using std::cerr;
 using std::endl;
 
+
 int Process::Start(const char* const file, char* const argv[]) {
 
+#ifdef _WIN32
+	cerr << "AQ cannot run culuster on Windows." << endl;
+	return -1;
+#else
 	int pipe_from[2];
 	int pipe_to[2];
 
@@ -72,6 +77,7 @@ int Process::Start(const char* const file, char* const argv[]) {
 	std::setvbuf(stream_from, NULL, _IONBF, 0);
 
 	return process_id;
+#endif
 
 }
 
@@ -140,7 +146,11 @@ void Cluster::LaunchWorkers(){
 			break;
 		}
 
+#ifdef _WIN32
+		Sleep(1000);
+#else
 		sleep(1);
+#endif
 		auto t2 = std::chrono::system_clock::now();
 		double elapsed_time = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()/1000;
 		// ‘Ò‚Á‚Ä‚à‰“š‚ª‚È‚¯‚ê‚ÎŸ‚Éi‚Ş
@@ -173,7 +183,11 @@ void Cluster::LaunchWorkers(){
 			break;
 		}
 
+#ifdef _WIN32
+		Sleep(1000);
+#else
 		sleep(1);
+#endif
 		auto t2 = std::chrono::system_clock::now();
 		double elapsed_time = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()/1000;
 		// ‘Ò‚Á‚Ä‚à‰“š‚ª‚È‚¯‚ê‚ÎŸ‚Éi‚Ş

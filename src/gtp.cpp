@@ -15,6 +15,7 @@ using std::endl;
 
 bool save_log = true;
 bool need_time_controll = false;
+bool use_pondering = true;
 
 
 bool FindStr(string str, string s1){
@@ -61,6 +62,11 @@ int CallGTP(){
 	Board b;
 	Tree tree;
 	Cluster cluster;
+#ifdef _WIN32
+	// Cluster cannot be used on Windows.
+	is_master = false;
+	is_worker = false;
+#endif
 
 	// 1. masterの場合、子プロセスを起動する.
 	//    Launch workers if master of the cluster.
@@ -71,7 +77,7 @@ int CallGTP(){
 	int file_cnt = 0;
 	if(save_log){
 		std::stringstream ss;
-		ss << "./log/log_" << file_cnt << ".txt";
+		ss << "log" << spl_str << file_cnt << ".txt";
 		tree.log_path = ss.str();
 		std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
 	}
@@ -108,7 +114,8 @@ int CallGTP(){
 		// GTPコマンドが送られてくるまでポンダー
 		// Ponder until GTP commands are sent.
 		if(	is_playing && b.prev_move[b.her] != PASS &&
-			(tree.left_time > 25 || tree.byoyomi != 0))
+			(tree.left_time > 25 || tree.byoyomi != 0) &&
+			use_pondering)
 		{
 			double time_limit = 300.0;
 			tree.SearchTree(b, time_limit, win_rate, false, true);
@@ -123,7 +130,8 @@ int CallGTP(){
 			continue;
 		}
 		else if (FindStr(gtp_str, "name")) SendGTP("= AQ\n\n");
-		else if (FindStr(gtp_str, "version")) SendGTP("= 2.0.2\n\n");
+		else if (FindStr(gtp_str, "protocol_version")) SendGTP("= 2.0\n\n");
+		else if (FindStr(gtp_str, "version")) SendGTP("= 2.0.3\n\n");
 		else if (FindStr(gtp_str, "boardsize")) {
 			// Board size setting. (only corresponding to 19 size)
 			// "=boardsize 19", "=boardsize 13", ...
@@ -135,15 +143,24 @@ int CallGTP(){
 			// 対応しているコマンド一覧を送る
 			// Send the corresponding command list.
 			SendGTP("= boardsize\n");
-			SendGTP("= list_commands\n");
-			SendGTP("= clear_board\n");
-			SendGTP("= genmove\n");
-			SendGTP("= play\n");
-			SendGTP("= quit\n");
-			SendGTP("= time_left\n");
-			SendGTP("= time_settings\n");
-			SendGTP("= name\n");
-			SendGTP("= version\n");
+			SendGTP("list_commands\n");
+			SendGTP("clear_board\n");
+			SendGTP("genmove\n");
+			SendGTP("play\n");
+			SendGTP("quit\n");
+			SendGTP("time_left\n");
+			SendGTP("time_settings\n");
+			SendGTP("name\n");
+			SendGTP("protocol_version\n");
+			SendGTP("version\n");
+			SendGTP("komi\n");
+			SendGTP("final_score\n");
+			SendGTP("kgs-time_settings\n");
+			SendGTP("kgs-game_over\n");
+			SendGTP("place_free_handicap\n");
+			SendGTP("set_free_handicap\n");
+			SendGTP("gogui-play_sequence\n");
+			SendGTP("gogui-analyze_commands\n");
 			SendGTP("= \n\n");
 		}
 		else if (FindStr(gtp_str, "clear_board"))
@@ -159,7 +176,7 @@ int CallGTP(){
 			if(save_log){
 				++file_cnt;
 				std::stringstream ss;
-				ss << "./log/log_" << file_cnt << ".txt";
+				ss << "log" << spl_str << file_cnt << ".txt";
 				tree.log_path = ss.str();
 				std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
 			}
@@ -169,6 +186,20 @@ int CallGTP(){
 
 			SendGTP("= \n\n");
 			cerr << "clear board." << endl;
+		}
+		else if (FindStr(gtp_str, "komi"))
+		{
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			double komi_ = stod(split_list[1]);
+			cfg_komi = (komi_ == 0)? 0.5 : komi_;
+			tree.komi = cfg_komi;
+
+			if(is_master) cluster.SendCommand(gtp_str);
+
+			SendGTP("= \n\n");
+			fprintf(stderr, "set komi=%.1f.\n", tree.komi);
 		}
 		else if (FindStr(gtp_str, "time_left"))
 		{
@@ -291,11 +322,12 @@ int CallGTP(){
 				PrintBoard(b, next_move);
 				if(tree.log_path != ""){
 					PrintBoard(b, next_move, tree.log_path);
+					//PrintOccupancy(tree.stat.game, tree.stat.owner, tree.log_path);
 				}
 
 				if(save_log){
 					std::stringstream ss;
-					ss << "./log/log_" << file_cnt << ".sgf";
+					ss << "log" << spl_str << file_cnt << ".sgf";
 					sgf.ExportData(ss.str());
 				}
 
@@ -325,6 +357,10 @@ int CallGTP(){
 			if(FindStr(gtp_str, "pass", "Pass", "PASS")){
 				next_move = PASS;
 			}
+			else if(FindStr(gtp_str, "resign")){
+				next_move = PASS;
+				is_playing = false;
+			}
 			else{
 				SplitString(gtp_str, " ", split_list);
 				if(split_list[0] == "=") split_list.erase(split_list.begin());
@@ -347,9 +383,9 @@ int CallGTP(){
 				sgf.AddMove(PASS);
 				--b.pass_cnt[0];
 
-				if(tree.komi != 0){
-					tree.komi = 0.0;
-					cerr << "set Komi: 0\n";
+				if(tree.komi != 0.5){
+					tree.komi = 0.5;
+					cerr << "set komi=0.5.\n";
 				}
 			}
 
@@ -381,7 +417,7 @@ int CallGTP(){
 
 				if(save_log){
 					std::stringstream ss;
-					ss << "./log/log_" << file_cnt << ".sgf";
+					ss << "log" << spl_str << file_cnt << ".sgf";
 					sgf.ExportData(ss.str());
 				}
 
@@ -427,7 +463,7 @@ int CallGTP(){
 			if(!is_worker){
 				if(save_log){
 					std::stringstream ss;
-					ss << "./log/log_" << file_cnt << ".sgf";
+					ss << "log" << spl_str << file_cnt << ".sgf";
 					sgf.ExportData(ss.str());
 				}
 			}
@@ -505,9 +541,216 @@ int CallGTP(){
 
 			SendGTP(ss.str().c_str());
 		}
+		else if (FindStr(gtp_str, "gogui-analyze_commands")) {
+						
+			SendGTP("= gfx/Print Best Sequence/best_sequence\n");
+			//SendGTP("none/Togle Live Best Sequence/toggle_live_best_sequence %m\n");
+			//SendGTP("hpstring/Print Moves/chid_info %m\n");
+			SendGTP("\n\n");
+
+		}
+		else if (FindStr(gtp_str, "toggle_live_best_sequence")) {
+
+			tree.live_best_sequence = !(tree.live_best_sequence);
+			SendGTP("= \n\n");
+
+		}
+		else if (FindStr(gtp_str, "best_sequence")) {
+
+			tree.SearchTree(b, 0.0, win_rate, false, false);
+			std::stringstream ss;
+			tree.PrintGFX(ss);
+			SendGTP("= %s\n\n", ss.str().c_str());
+
+		}
+		else if (FindStr(gtp_str, "chid_info")) {
+
+			tree.SearchTree(b, 0.0, win_rate, false, false);
+			std::stringstream ss;
+			tree.PrintChildInfo(tree.root_node_idx, ss);
+			SendGTP("= %s\n\n", ss.str().c_str());
+
+		}
+		else if (FindStr(gtp_str, "analyze")) {
+			// N秒思考して読み筋を表示する
+			// Think in N seconds and display top 10 moves.
+			// "= analyze 60" -> think 60 sec.
+			// "= analyze" -> think with default time setting.
+			// "= analyze -1" -> returns moves without thinking.
+
+			SplitString(gtp_str, " ", split_list);
+			if (split_list[0] == "=") split_list.erase(split_list.begin());
+
+			double think_time = 0.0;
+			if (split_list.size() >= 2) think_time = stod(split_list[1]);
+
+			if(think_time >= 0) tree.SearchTree(b, think_time, win_rate, false, true);
+			tree.PrintChildInfo(tree.root_node_idx, std::cerr);
+			SendGTP("= \n\n");
+
+		}
+		else if (FindStr(gtp_str, "kgs-time_settings"))
+		{
+			// 時間を設定する
+			// Set main and byoyomi time.
+			// "=kgs-time_settings byoyomi 30 60 3", ...
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			if(FindStr(gtp_str, "byoyomi") && split_list.size() >= 4){
+				tree.main_time = (double)stoi(split_list[2]);
+				tree.left_time = tree.main_time;
+				tree.byoyomi = (double)stoi(split_list[3]);
+			}
+			else{
+				tree.main_time = (double)stoi(split_list[2]);
+				tree.left_time = tree.main_time;
+			}
+
+			SendGTP("= \n\n");
+		}
+		else if (FindStr(gtp_str, "set_free_handicap"))
+		{
+			// 置き石を配置する
+			// "=place_free_handicap 2"
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			if(split_list.size() >= 2){
+				int i_max = (int)split_list.size();
+				for(int i=1;i<i_max;++i){
+					string str_x = split_list[i].substr(0, 1);
+					string str_y = split_list[i].substr(1);
+
+					string x_list = "ABCDEFGHJKLMNOPQRSTabcdefghjklmnopqrst";
+
+					int x = int(x_list.find(str_x)) % 19 + 1;
+					int y = stoi(str_y);
+
+					int next_move = xytoe[x][y];
+					b.PlayLegal(next_move);
+					sgf.AddMove(next_move);
+
+					b.PlayLegal(PASS);
+					sgf.AddMove(PASS);
+					--b.pass_cnt[0];
+				}
+
+				if(tree.komi != 0.5){
+					tree.komi = 0.5;
+					cerr << "set komi=0.5.\n";
+				}
+			}
+
+			if(is_master) cluster.SendCommand(gtp_str);
+			SendGTP("= \n\n");
+			cerr << "set free handicap.\n";
+		}
+		else if (FindStr(gtp_str, "place_free_handicap"))
+		{
+			// 置き石を配置する
+			// "=place_free_handicap 2"
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			if(split_list.size() >= 2){
+				int x_[9] = {16,4,16,4,16,4,10,10,10};
+				int y_[9] = {16,4,4,16,10,10,16,4,10};
+				int stones[8][9] = {{0,1},{0,1,2},{0,1,2,3},{0,1,2,3,8},
+									{0,1,2,3,4,5}, {0,1,2,3,4,5,8},{0,1,2,3,4,5,6,7},
+									{0,1,2,3,4,5,6,7,8}};
+				int hc_cnt = stoi(split_list[1]);
+				int hc_idx = hc_cnt = 1;
+				for(int i=0;i<hc_cnt;++i){
+					int stone_idx = stones[hc_idx][i];
+					int v = xytoe[x_[stone_idx]][y_[stone_idx]];
+					b.PlayLegal(v);
+					sgf.AddMove(v);
+
+					b.PlayLegal(PASS);
+					sgf.AddMove(PASS);
+					--b.pass_cnt[0];
+				}
+
+				if(tree.komi != 0.5){
+					tree.komi = 0.5;
+					cerr << "set komi=0.5.\n";
+				}
+			}
+
+			if(is_master) cluster.SendCommand(gtp_str);
+			SendGTP("= \n\n");
+			cerr << "placed handicap stones.\n";
+		}
+		else if (FindStr(gtp_str, "gogui-play_sequence"))
+		{
+			// 引き継ぎ対局で、すべての手を受信する
+			// "=gogui-play_sequence B R16 W D16 B Q3 W D3 ..."
+
+			b.Clear();
+			tree.InitBoard();
+			sgf.Clear();
+			if(save_log){
+				std::stringstream ss;
+				ss << "log" << spl_str << file_cnt << ".txt";
+				tree.log_path = ss.str();
+				std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
+			}
+			is_playing = is_worker? true : false;
+			play_mimic = cfg_mimic;
+
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			int i_max = (int)split_list.size();
+			for(int i=2;i<i_max;i=i+2){
+				int pl = (FindStr(split_list[i-1], "B", "b"))? 1 : 0;
+				int next_move = PASS;
+				if(b.my != pl){
+					b.PlayLegal(PASS);
+					sgf.AddMove(PASS);
+					--b.pass_cnt[pl];
+				}
+				if(!FindStr(split_list[i], "PASS", "Pass", "pass")){
+					string str_x = split_list[i].substr(0, 1);
+					string str_y = split_list[i].substr(1);
+
+					string x_list = "ABCDEFGHJKLMNOPQRSTabcdefghjklmnopqrst";
+
+					int x = int(x_list.find(str_x)) % 19 + 1;
+					int y = stoi(str_y);
+
+					next_move = xytoe[x][y];
+				}
+
+				// 局面を進める. Play the move.
+				b.PlayLegal(next_move);
+				// ログファイルを更新する. Update logs.
+				sgf.AddMove(next_move);
+				if(!is_worker){
+					if(tree.log_path != "") PrintBoard(b, next_move, tree.log_path);
+				}
+			}
+
+			tree.UpdateRootNode(b);
+			if(is_master) cluster.SendCommand(gtp_str);
+			if(!is_worker && save_log){
+				std::stringstream ss;
+				ss << "log" << spl_str << file_cnt << ".sgf";
+				sgf.ExportData(ss.str());
+			}
+
+			SendGTP("= \n\n");
+			cerr << "sequence loaded." << endl;
+		}
+		else if(FindStr(gtp_str, "kgs-game_over")){
+			is_playing = false;
+			SendGTP("= \n\n");
+		}
 		else if(FindStr(gtp_str, "quit")){
 			if(is_master) cluster.SendCommand("quit");
 			if(!is_worker) tree.PrintResult(b);
+			SendGTP("= \n\n");
 			break;
 		}
 		else{

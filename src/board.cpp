@@ -61,25 +61,10 @@ inline void FillArray(A (&array)[N], const T &val){
 }
 
 
-/**
- *  expの近似関数
- *  テイラー展開e^x = lim[n->inf](1+x/n)^nを利用
- *  n=256=2^8の場合を利用
- *
- *  Approximate function of std::exp.
- *  e^x = lim[n->inf](1+x/n)^n
- *  where n = 2^8 = 256.
- */
-inline double exp256(double x){
-
-	double x1 = 1.0 + x / 256.0;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	x1 *= x1; x1 *= x1; x1 *= x1; x1 *= x1;
-	return x1;
-
-}
-
-constexpr double inv_temp = 1.0;
+const double response_w[4][2] = {	{2.791642, 1/2.791642},
+									{205.0225, 1/205.0225},
+									{21.90445, 1/21.90445},
+									{4.755586, 1/4.755586}};
 
 
 Board::Board() {
@@ -126,7 +111,6 @@ Board& Board::operator=(const Board& other) {
 	updated_ptns.clear();
 	copy(other.updated_ptns.begin(), other.updated_ptns.end(), back_inserter(updated_ptns));
 	std::memcpy(sum_prob_rank, other.sum_prob_rank, sizeof(sum_prob_rank));
-	std::memcpy(w_prob, other.w_prob, sizeof(w_prob));
 	std::memcpy(pass_cnt, other.pass_cnt, sizeof(pass_cnt));
 
 	return *this;
@@ -166,7 +150,6 @@ void Board::Clear() {
 			ptn[i].SetNull();		//0xffffffff
 
 			prob[0][i] = prob[1][i] = 0;
-			w_prob[0][i] = w_prob[1][i] = 0;
 		}
 		// real board
 		else {
@@ -194,15 +177,10 @@ void Board::Clear() {
 		// 確率分布を初期化
 		// Initialize probability distribution.
 
-		// vにおけるpl側の評価パラメータの和
-		// w_prob[pl][v]: Sum of probability parameters for each turn/vertex.
-		w_prob[0][v] = prob_dist_base[v] + ptn[v].GetProb3x3(0,false);
-		w_prob[1][v] = prob_dist_base[v] + ptn[v].GetProb3x3(1,false);
-
-		// 評価値のexp、着手確率 = prob[pl][v]/sum(prob[pl])
-		// Exp. of w_prob. Selected probability = prob[pl][v]/sum(prob[pl])
-		prob[0][v] = exp256(w_prob[0][v]);
-		prob[1][v] = exp256(w_prob[1][v]);
+		// 評価値.着手確率 = prob[pl][v]/sum(prob[pl])
+		// Probability. Selected probability = prob[pl][v]/sum(prob[pl])
+		prob[0][v] = prob_dist_base[v] * ptn[v].GetProb3x3(0,false);
+		prob[1][v] = prob_dist_base[v] * ptn[v].GetProb3x3(1,false);
 
 		// 実盤面のn段目のprobの和
 		// Sum of prob[pl][v] in the Nth rank on the real board.
@@ -360,8 +338,9 @@ bool Board::IsSeki(int v) const{
 
 			// 呼吸点が2でない or サイズが1のとき -> false
 			// Return false when the liberty number is not 2 or the size if 1.
-			if(!ptn[v].IsPreAtari(i) ||
-				ren[ren_idx[v_nbr]].size == 1) return false;
+			if(!ptn[v].IsPreAtari(i)) return false;
+			else if(ren[ren_idx[v_nbr]].size == 1 &&
+					ptn[v].StoneCnt(color[v_nbr] - 2) == 1)	return false;
 
 			nbr_ren_idxs.push_back(ren_idx[v_nbr]);
 		}
@@ -377,7 +356,7 @@ bool Board::IsSeki(int v) const{
 	int lib_cnt = 0;
 	for(auto lbt: lib_bits_tmp){
 		if(lbt != 0){
-			lib_cnt += (int)_mm_popcnt_u64(lbt);
+			lib_cnt += (int)popcnt64(lbt);
 		}
 	}
 
@@ -560,8 +539,8 @@ inline void Board::PlaceStone(int v) {
 	--empty_cnt;
 	empty_idx[empty[empty_cnt]] = empty_idx[v];
 	empty[empty_idx[v]] = empty[empty_cnt];
-	ReplaceProbWeight(my, v, 0.0);
-	ReplaceProbWeight(her, v, 0.0);
+	ReplaceProb(my, v, 0.0);
+	ReplaceProb(her, v, 0.0);
 	is_placed[my][v] = true;
 
 	// 3. vを含む連indexの更新
@@ -607,8 +586,8 @@ inline void Board::RemoveStone(int v) {
 	empty_idx[v] = empty_cnt;
 	empty[empty_cnt] = v;
 	++empty_cnt;
-	ReplaceProbWeight(my, v, prob_dist_base[v]);
-	ReplaceProbWeight(her, v, prob_dist_base[v]);
+	ReplaceProb(my, v, prob_dist_base[v]);
+	ReplaceProb(her, v, prob_dist_base[v]);
 	ren_idx[v] = v;
 	removed_stones.push_back(v);
 
@@ -765,6 +744,50 @@ inline bool Board::IsSelfAtariNakade(int v) const{
 
 }
 
+
+inline bool Board::IsSelfAtari(int pl, int v) const{
+
+	if(ptn[v].EmptyCnt() >= 2) return false;
+
+	int64 lib_bits[6] = {0,0,0,0,0,0};
+	int lib_cnt = 0;
+
+	// vに隣接する連の呼吸点を調べる
+	// Count number of liberty of the neighboring Rens.
+	forEach4Nbr(v, v_nbr, {
+
+		// 空点. Empty vertex.
+		if(color[v_nbr] == 0){
+			lib_bits[etor[v_nbr]/64] |= (0x1ULL<<(etor[v_nbr]%64));
+		}
+		// vの隣接交点が敵石. Opponent's stone.
+		else if (color[v_nbr] == int(pl == 0)) {
+			if (ren[ren_idx[v_nbr]].IsAtari()){
+				if(ren[ren_idx[v_nbr]].size > 1) return false;
+				lib_bits[etor[v_nbr]/64] |= (0x1ULL<<(etor[v_nbr]%64));
+			}
+		}
+		// vの隣接交点が自石. Player's stone.
+		else if (color[v_nbr] == pl) {
+			if(ren[ren_idx[v_nbr]].lib_cnt > 2) return false;
+			for(int k=0;k<6;++k){
+				lib_bits[k] |= ren[ren_idx[v_nbr]].lib_bits[k];
+			}
+		}
+
+	});
+
+	lib_bits[etor[v]/64] &= ~(0x1ULL<<(etor[v]%64));	// vを除外. Exclude v.
+	for(int k=0;k<6;++k){
+		if(lib_bits[k] != 0){
+			lib_cnt += (int)popcnt64(lib_bits[k]);
+		}
+	}
+
+	return (lib_cnt == 1);
+}
+
+
 /**
  *  座標vに着手する
  *  着手が合法手かは事前に評価しておく必要がある.
@@ -774,7 +797,7 @@ inline bool Board::IsSelfAtariNakade(int v) const{
 void Board::PlayLegal(int v) {
 
 	assert(v <= PASS);
-	assert(color[v] == 0);
+	assert(v == PASS || color[v] == 0);
 	assert(v != ko);
 
 	// 1. 棋譜情報を更新
@@ -797,15 +820,15 @@ void Board::PlayLegal(int v) {
 	//    Restore probability of response_move.
 	response_move[0] = VNULL;	//ナカデの急所. Vital of Nakade.
 	if(response_move[1] != VNULL){
-		AddProbWeight(my, response_move[1], -5.32312 * inv_temp);
+		AddProb(my, response_move[1], response_w[1][1]);
 		response_move[1] = VNULL;	//アタリの周囲の石を取る. Save Atari stones by taking opponent's stones.
 	}
 	if(response_move[2] != VNULL){
-		AddProbWeight(my, response_move[2], -3.08669 * inv_temp);
+		AddProb(my, response_move[2], response_w[2][1]);
 		response_move[2] = VNULL;	//アタリを逃げる. Save Atari stones by escaping move.
 	}
 	if(response_move[3] != VNULL){
-		AddProbWeight(my, response_move[3], -1.55932 * inv_temp);
+		AddProb(my, response_move[3], response_w[3][1]);
 		response_move[3] = VNULL;	//直前の石を取る. Take a stone placed previously.
 	}
 
@@ -956,40 +979,13 @@ void Board::PlayLegal(int v) {
 
 			// c. アタリから逃げれるか調べる
 			//    Check whether it is possible to save stones by escaping.
-			if(	ptn[v_atari].EmptyCnt() >= 2	||
-				(ptn[v_atari].ColorAt(0) == her_color && !ptn[v_atari].IsAtari(0) && !ptn[v_atari].IsPreAtari(0)) ||
-				(ptn[v_atari].ColorAt(1) == her_color && !ptn[v_atari].IsAtari(1) && !ptn[v_atari].IsPreAtari(1)) ||
-				(ptn[v_atari].ColorAt(2) == her_color && !ptn[v_atari].IsAtari(2) && !ptn[v_atari].IsPreAtari(2)) ||
-				(ptn[v_atari].ColorAt(3) == her_color && !ptn[v_atari].IsAtari(3) && !ptn[v_atari].IsPreAtari(3)))
-			{
-				if(ptn[v_atari].EmptyCnt() == 2){
-					if(ladder_ptn[her].find(ptn[v_atari].bf) == ladder_ptn[her].end()){
-						response_move[2] = v_atari;
-					}
+			if(ptn[v_atari].EmptyCnt() == 2){
+				if(ladder_ptn[her].find(ptn[v_atari].bf) == ladder_ptn[her].end()){
+					response_move[2] = v_atari;
 				}
-				else response_move[2] = v_atari;
 			}
-			else if(ptn[v_atari].StoneCnt(her) > 1){
-				int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
-				forEach4Nbr(v_atari, v_nbr4,{
-					if(color[v_nbr4] == 0){
-						lib_bits_tmp[etor[v_nbr4]/64] |= (0x1ULL << (etor[v_nbr4] % 64));
-					}
-					else if(color[v_nbr4] == her_color){
-						for(int i=0;i<6;++i){
-							lib_bits_tmp[i] |= ren[ren_idx[v_nbr4]].lib_bits[i];
-						}
-					}
-				});
-
-				int lib_cnt = 0;
-				for(int i=0;i<6;++i){
-					if(lib_bits_tmp[i] != 0){
-						lib_cnt += (int)_mm_popcnt_u64(lib_bits_tmp[i]);
-					}
-				}
-
-				if(lib_cnt >= 2) response_move[2] = v_atari;
+			else if(ptn[v_atari].EmptyCnt() > 2 || !IsSelfAtari(her, v_atari)){
+				response_move[2] = v_atari;
 			}
 		}
 	}
@@ -1005,7 +1001,7 @@ void Board::PlayLegal(int v) {
 		auto add_prob = prob_ptn_rsp.at(prev_ptn[0].bf);
 		prev_ptn_prob = add_prob[1];	//レスポンス状態から元に戻す確率パラメータ
 		forEach12Nbr(v, v_nbr12, {
-			AddProbWeight(her, v_nbr12, add_prob[0]);
+			AddProb(her, v_nbr12, add_prob[0]);
 		});
 	}
 
@@ -1014,13 +1010,13 @@ void Board::PlayLegal(int v) {
 	AddProbDist(v);
 
 	if(response_move[1] != VNULL){
-		AddProbWeight(her, response_move[1], 5.32312 * inv_temp);
+		AddProb(her, response_move[1], response_w[1][0]);
 	}
 	if(response_move[2] != VNULL){
-		AddProbWeight(her, response_move[2], 3.08669 * inv_temp);
+		AddProb(her, response_move[2], response_w[2][0]);
 	}
 	if(response_move[3] != VNULL){
-		AddProbWeight(her, response_move[3], 1.55932 * inv_temp);
+		AddProb(her, response_move[3], response_w[3][0]);
 	}
 
 	// 14. 手番変更
@@ -1067,7 +1063,7 @@ inline void Board::SubPrevPtn(){
 	// 周囲12点の確率を元に戻す
 	// Restore the probability of 12 surroundings.
 	forEach12Nbr(prev_move[her], v_nbr, {
-		AddProbWeight(my, v_nbr, prev_ptn_prob);
+		AddProb(my, v_nbr, prev_ptn_prob);
 	});
 
 }
@@ -1080,43 +1076,19 @@ void Board::ReplaceProb(int pl, int v, double new_prob) {
 
 	sum_prob_rank[pl][etoy[v] - 1] += new_prob - prob[pl][v];
 	prob[pl][v] = new_prob;
-	if(new_prob == 0.0) w_prob[pl][v] = 0.0;
-	else w_prob[pl][v] = log(new_prob);
-
-}
-
-/**
- *  座標vのpl側の確率パラメータをnew_probで置き換える
- *  Replace sum of probability weight on position v with new_w_prob.
- */
-void Board::ReplaceProbWeight(int pl, int v, double new_w_prob) {
-
-	sum_prob_rank[pl][etoy[v] - 1] -= prob[pl][v];
-	w_prob[pl][v] = new_w_prob;
-	if(new_w_prob == 0.0) prob[pl][v] = 0.0;
-	else prob[pl][v] = exp256(new_w_prob);
-	sum_prob_rank[pl][etoy[v] - 1] += prob[pl][v];
 
 }
 
 /**
  *  座標vのpl側の確率パラメータにadd_probを加算する
- *  Add probability weight of add_prob
+ *  Multiply probability.
  */
-inline void Board::AddProbWeight(int pl, int v, double add_w_prob) {
+inline void Board::AddProb(int pl, int v, double add_prob) {
 
 	if(v >= PASS || prob[pl][v] == 0) return;
 
-	sum_prob_rank[pl][etoy[v] - 1] -= prob[pl][v];
-	if(add_w_prob == 0){
-		w_prob[pl][v] = 0;
-		prob[pl][v] = 0;
-	}
-	else{
-		w_prob[pl][v] += add_w_prob;
-		prob[pl][v] = exp256(w_prob[pl][v]);
-		sum_prob_rank[pl][etoy[v] - 1] += prob[pl][v];
-	}
+	sum_prob_rank[pl][etoy[v] - 1] += (add_prob - 1) * prob[pl][v];
+	prob[pl][v] *= add_prob;
 
 }
 
@@ -1133,10 +1105,10 @@ void Board::AddProbPtn12() {
 
 		// 1. 距離パラメータを追加
 		//    Add probability of long distance.
-		AddProbWeight(my, v, prob_dist[0][DistBetween(v, prev_move[her])][0]);
-		AddProbWeight(my, v, prob_dist[1][DistBetween(v, prev_move[my])][0]);
-		AddProbWeight(her, v, prob_dist[0][DistBetween(v, prev_move[my])][0]);
-		AddProbWeight(her, v, prob_dist[1][DistBetween(v, prev_move[her])][0]);
+		AddProb(my, v, prob_dist[0][DistBetween(v, prev_move[her])][0]);
+		AddProb(my, v, prob_dist[1][DistBetween(v, prev_move[my])][0]);
+		AddProb(her, v, prob_dist[0][DistBetween(v, prev_move[my])][0]);
+		AddProb(her, v, prob_dist[1][DistBetween(v, prev_move[her])][0]);
 
 		// 2. 12点パターンの確率を追加
 		//    Add probability of 12-point patterns.
@@ -1146,8 +1118,8 @@ void Board::AddProbPtn12() {
 		tmp_ptn.SetColor(10, color[std::max(0, (v - EBSIZE * 2))]);
 		tmp_ptn.SetColor(11, color[v - 2]);
 		if(prob_ptn12.find(tmp_ptn.bf) != prob_ptn12.end()){
-			AddProbWeight(my, v, prob_ptn12[tmp_ptn.bf][my]);
-			AddProbWeight(her, v, prob_ptn12[tmp_ptn.bf][her]);
+			AddProb(my, v, prob_ptn12[tmp_ptn.bf][my]);
+			AddProb(her, v, prob_ptn12[tmp_ptn.bf][her]);
 		}
 	}
 
@@ -1162,7 +1134,7 @@ void Board::RecalcProbAll(){
 	for(int i=0;i<empty_cnt;++i){
 		int v = empty[i];
 		for(int j=0;j<2;++j){
-			ReplaceProbWeight(j, v, prob_dist_base[v] + ptn[v].GetProb3x3(j,false));
+			ReplaceProb(j, v, prob_dist_base[v] * ptn[v].GetProb3x3(j,false));
 		}
 	}
 
@@ -1182,16 +1154,13 @@ inline void Board::UpdateProbAll() {
 			int bf = i.second;
 			Pattern3x3 ptn_(bf);
 			double ptn_prob = ptn[v].GetProb3x3(j,false);
-			double prob_diff = ptn_.GetProb3x3(j,true) + ptn_prob;
+			double prob_diff = ptn_.GetProb3x3(j,true) * ptn_prob;
 
-			if(ptn_prob == 0){
-				ReplaceProbWeight(j, v, 0.0);
+			if(prob[j][v] == 0){
+				ReplaceProb(j, v, prob_dist_base[v] * ptn_prob);
 			}
-			else if(prob[j][v] == 0){
-				ReplaceProbWeight(j, v, prob_dist_base[v] + ptn_prob);
-			}
-			else if(prob_diff != 0){
-				AddProbWeight(j, v, prob_diff);
+			else{
+				AddProb(j, v, prob_diff);
 			}
 		}
 	}
@@ -1201,8 +1170,8 @@ inline void Board::UpdateProbAll() {
 	//   Update probability on positions where a stone was removed.
 	//   Probability of prob_dist_base has been already added in RemoveStone().
 	for (auto i: removed_stones) {
-		AddProbWeight(my, i, ptn[i].GetProb3x3(my,false));
-		AddProbWeight(her, i, ptn[i].GetProb3x3(her,false));
+		AddProb(my, i, ptn[i].GetProb3x3(my,false));
+		AddProb(her, i, ptn[i].GetProb3x3(her,false));
 	}
 
 }
@@ -1217,7 +1186,7 @@ inline void Board::SubProbDist() {
 
 	if (prev_move[her] < PASS) {
 		forEach8Nbr(prev_move[her],v_nbr,d_nbr,d_opp,{
-			AddProbWeight(her, v_nbr, -1.02663 * inv_temp);
+			AddProb(my, v_nbr, response_w[0][1]);
 		});
 	}
 
@@ -1232,7 +1201,7 @@ inline void Board::SubProbDist() {
 inline void Board::AddProbDist(int v) {
 
 	forEach8Nbr(v,v_nbr,d_nbr,d_opp,{
-		AddProbWeight(my, v_nbr, 1.02663 * inv_temp);
+		AddProb(her, v_nbr, response_w[0][0]);
 	});
 
 }
@@ -1321,7 +1290,7 @@ int Board::SelectMove() {
 			}
 			++next_move;
 		}
-		assert(x < BSIZE);
+		//assert(x < BSIZE);
 
 		// c. 眼を埋めずセキでもない合法手か
 		//    Break if next_move is legal and dosen't fill an eye or Seki.
@@ -1345,6 +1314,7 @@ int Board::SelectMove() {
 
 }
 
+
 /**
  *  10手目でマネ碁されているか
  *  Return whether it is mimic go at the 10th move.
@@ -1356,11 +1326,10 @@ bool Board::IsMimicGo(){
 
 	for(int i=0;i<10;i=i+2){
 		if(move_history[i] == PASS || move_history[i+1] == PASS) return false;
-		int x1 = EBSIZE - 1 - etox[move_history[i]];
-		int y1 = EBSIZE - 1 - etoy[move_history[i]];
-		int x2 = etox[move_history[i+1]];
-		int y2 = etoy[move_history[i+1]];
-		if(x1 != x2 || y1 != y2) return false;
+		int x = EBSIZE - 1 - etox[move_history[i]];
+		int y = EBSIZE - 1 - etoy[move_history[i]];
+		int v_on_diag = xytoe[x][y];
+		if(color[v_on_diag] != 2) return false;
 	}
 
 	return true;

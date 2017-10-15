@@ -465,7 +465,7 @@ int PlayoutLGR(Board& b, LGR& lgr, double komi)
 	std::vector<std::array<int, 3>> lgr_rollout_add[2];
 	std::array<int, 3> lgr_rollout_seed;
 	int update_v[2] = {VNULL, VNULL};
-	double update_p[2] = {8.318, 3.466};
+	double update_p[2] = {100, 25};
 
 	while (b.move_cnt <= 720) {
 		lgr_seed[0] = b.prev_ptn[0].bf;
@@ -489,7 +489,7 @@ int PlayoutLGR(Board& b, LGR& lgr, double komi)
 				v = itr->second;
 				if(v < PASS && b.IsLegal(b.my, v) && !b.IsEyeShape(b.my, v) && !b.IsSeki(v)){
 					if(b.prob[b.my][v] != 0){
-						b.ReplaceProbWeight(b.my, v, b.w_prob[b.my][v] + update_p[0]);
+						b.ReplaceProb(b.my, v, b.prob[b.my][v] * update_p[0]);
 						update_v[0] = v;
 					}
 				}
@@ -501,7 +501,7 @@ int PlayoutLGR(Board& b, LGR& lgr, double komi)
 
 				if(v < PASS){
 					if(b.prob[b.my][v] != 0){
-						b.ReplaceProbWeight(b.my, v, b.w_prob[b.my][v] + update_p[1]);
+						b.ReplaceProb(b.my, v, b.prob[b.my][v] * update_p[1]);
 						update_v[1] = v;
 					}
 				}
@@ -514,7 +514,7 @@ int PlayoutLGR(Board& b, LGR& lgr, double komi)
 			for(int i=0;i<2;++i){
 				if(update_v[i] != VNULL){
 					if(b.prob[b.her][update_v[i]] != 0){
-						b.ReplaceProbWeight(b.her, update_v[i], b.w_prob[b.her][update_v[i]] - update_p[i]);
+						b.ReplaceProb(b.her, update_v[i], b.prob[b.her][update_v[i]] / update_p[i]);
 					}
 					update_v[i] = VNULL;
 				}
@@ -581,7 +581,7 @@ int PlayoutLGR(Board& b, LGR& lgr, Statistics& stat, double komi)
 	std::vector<std::array<int, 3>> lgr_rollout_add[2];
 	std::array<int, 3> lgr_rollout_seed;
 	int update_v[2] = {VNULL, VNULL};
-	double update_p[2] = {8.318, 3.466};
+	double update_p[2] = {100, 25};
 
 	while (b.move_cnt <= 720) {
 		lgr_seed[0] = b.prev_ptn[0].bf;
@@ -603,7 +603,7 @@ int PlayoutLGR(Board& b, LGR& lgr, Statistics& stat, double komi)
 				v = itr->second;
 				if(v != VNULL && b.IsLegal(b.my, v) && !b.IsEyeShape(b.my, v) && !b.IsSeki(v)){
 					if(b.prob[b.my][v] != 0){
-						b.ReplaceProbWeight(b.my, v, b.w_prob[b.my][v] + update_p[0]);
+						b.ReplaceProb(b.my, v, b.prob[b.my][v] * update_p[0]);
 						update_v[0] = v;
 					}
 				}
@@ -615,7 +615,7 @@ int PlayoutLGR(Board& b, LGR& lgr, Statistics& stat, double komi)
 				if(v != VNULL){
 					//lgr_rollout‚ÌŽè‚ÌŠm—¦‚ðx”{‚É
 					if(b.prob[b.my][v] != 0){
-						b.ReplaceProbWeight(b.my, v, b.w_prob[b.my][v] + update_p[1]);
+						b.ReplaceProb(b.my, v, b.prob[b.my][v] * update_p[1]);
 						update_v[1] = v;
 					}
 				}
@@ -628,7 +628,7 @@ int PlayoutLGR(Board& b, LGR& lgr, Statistics& stat, double komi)
 			for(int i=0;i<2;++i){
 				if(update_v[i] != VNULL){
 					if(b.prob[b.her][update_v[i]] != 0){
-						b.ReplaceProbWeight(b.her, update_v[i], b.w_prob[b.her][update_v[i]] - update_p[i]);
+						b.ReplaceProb(b.her, update_v[i], b.prob[b.her][update_v[i]] / update_p[i]);
 					}
 					update_v[i] = VNULL;
 				}

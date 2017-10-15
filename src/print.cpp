@@ -320,6 +320,7 @@ void PrintFinalScore(Board& b, int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT],
 
 }
 
+
 /**
  *  占有率を表示する
  *  Display occupancy of the vertexes in stderr.
@@ -373,5 +374,63 @@ void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT]){
 	cerr << "  ";
 	for (int x=0;x<BSIZE;++x)  cerr << " " << str_x[x] << " ";
 	cerr << endl;
+
+}
+
+
+/**
+ *  占有率を表示する
+ *  Write occupancy of the vertexes in file.
+ */
+void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT], std::string file_path){
+
+	std::ofstream ofs(file_path, std::ios::app);
+	// x座標を出力
+	// Output captions of x coordinate.
+	string str_x = "ABCDEFGHJKLMNOPQRST";
+	ofs << "  ";
+	for (int x=0;x<BSIZE;++x)  ofs << " " << str_x[x] << " ";
+	ofs << endl;
+
+	for(int y=0;y<BSIZE;++y){
+
+		// 一桁のときインデントを追加
+		// Add indent when single digit.
+		if(BSIZE - y < 10) ofs << " ";
+		// 左下が(A,1)のため、y座標を逆順で出力する
+		// Output y coordinate in reverse order because the lower left is (A,1).
+		ofs << BSIZE - y;
+
+		for (int x=0;x<BSIZE;++x) {
+			int v = rtoe[xytor[x][BSIZE - 1 - y]];
+
+			// 黒の占有率
+			// Occupancy of black stones.
+			double black_ratio = (double)owner_cnt[1][v] / game_cnt[2];
+			// 0-9の整数に切り上げ
+			// Round up to integer [0,9]
+			int disp_ratio = (int)round(black_ratio * 9);
+
+
+			if(black_ratio >= 0.5){
+				// 黒の占有率が50%以上
+				// When black occupancy is more than 50%.
+				ofs << "[" << disp_ratio << "]";
+			}
+			else{
+				// 白の占有率が50%以上
+				// When white occupancy is more than 50%.
+				ofs << " " << disp_ratio << " ";
+			}
+		}
+
+		if(BSIZE - y < 10) ofs << " ";
+		ofs << BSIZE - y << endl;
+
+	}
+
+	ofs << "  ";
+	for (int x=0;x<BSIZE;++x)  ofs << " " << str_x[x] << " ";
+	ofs << endl;
 
 }

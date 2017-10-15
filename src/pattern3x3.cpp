@@ -33,7 +33,6 @@ void ImportProbPtn3x3() {
 	prob_ptn_rsp.clear();
 	prob_ptn12.clear();
 
-	double inv_temp = 1.0;
 	std::ifstream ifs;
 	string str;
 	std::stringstream ss;
@@ -54,7 +53,7 @@ void ImportProbPtn3x3() {
 		std::array <double, 4> bf_prob;
 		for (int i=0;i<4;++i) {
 			getline(iss, line_str, ',');
-			bf_prob[i] = stod(line_str) * inv_temp;
+			bf_prob[i] = stod(line_str);
 		}
 
 		int stone_bf = bf & 0x0000ffff;
@@ -86,7 +85,7 @@ void ImportProbPtn3x3() {
 		std::array <double, 2> bf_prob;
 		for (int i=0;i<2;++i) {
 			getline(iss, line_str, ',');
-			bf_prob[i] = stod(line_str) * inv_temp;
+			bf_prob[i] = stod(line_str);
 		}
 
 		prob_ptn_rsp.insert(std::make_pair(bf, bf_prob));
@@ -110,7 +109,7 @@ void ImportProbPtn3x3() {
 		std::array <double, 4> bf_prob;
 		for (int i=0;i<4;++i) {
 			getline(iss, line_str, ',');
-			bf_prob[i] = stod(line_str) * inv_temp;
+			bf_prob[i] = stod(line_str);
 		}
 
 		prob_ptn12.insert(std::make_pair(bf, bf_prob));
