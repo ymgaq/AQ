@@ -34,7 +34,7 @@ The current version does not support `time_setting` command, so you need to chan
 ```
 
 ### GoGui setting
-[Gogui](https://sourceforge.net/projects/gogui/files/gogui/1.4.9/) is a graphical interface to Go-engines (programs without own GUI), which use the Go Text Protocol (GTP).  
+[GoGui](https://sourceforge.net/projects/gogui/files/gogui/1.4.9/) is a graphical interface to Go-engines (programs without own GUI), which use the Go Text Protocol (GTP).  
 See the 'GTP Shell' console to know AQ's thinking log.  
 #### Linux
 command: `(install directory)/AQ`  
@@ -52,8 +52,8 @@ working directory: `(install directory)`
 
 ```
 (Ex.)  
-C:\User\user\gogui-1.4.9\AQ\AQ.exe  
-C:\User\user\gogui-1.4.9\AQ  
+C:\Users\user\gogui-1.4.9\AQ\AQ.exe  
+C:\Users\user\gogui-1.4.9\AQ  
 ```
 
 ## Build from source code
