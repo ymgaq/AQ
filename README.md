@@ -24,20 +24,36 @@ Get them [here](http://github.com/ymgaq/AQ/releases).
 
 ### AQ configuration
 Set hardware and time control etc. in 'aq_config.txt.'  
+#### Time controll on CGOS
+The current version does not support 'time_setting' command, so you need to change time setting for runnning it on CGOS.  
+Otherwise, AQ often loses due to timeout.  
+
+```:aq_config.txt
+-main　time\[sec\] =900  
+-byoyomi\[sec\] =0  
+-time controll =off  
+```
 
 ### GoGui setting
 [Gogui](https://sourceforge.net/projects/gogui/files/gogui/1.4.9/) is a graphical interface to Go-engines (programs without own GUI), which use the Go Text Protocol (GTP).  
 See the 'GTP Shell' console to know AQ's thinking log.  
 #### Linux
-command: (install directory)/AQ  
-working directory: (install directory)  
-(ex. /home/user/gogui-1.4.9/AQ/AQ  
-     /home/user/gogui-1.4.9/AQ   )  
+command: `(install directory)/AQ`  
+working directory: `(install directory)`  
+
+```:Ex.
+/home/user/gogui-1.4.9/AQ/AQ  
+/home/user/gogui-1.4.9/AQ  
+```
+
 #### Windows
-command: (install directory)\\AQ.exe  
-working directory: (install directory)  
-(ex. C:\\User\\user\\gogui-1.4.9\\AQ\\AQ.exe  
-     C:\\User\\user\\gogui-1.4.9\\AQ        )  
+command: `(install directory)\\AQ.exe`  
+working directory: `(install directory)`  
+
+```:Ex.
+C:\\User\\user\\gogui-1.4.9\\AQ\\AQ.exe  
+C:\\User\\user\\gogui-1.4.9\\AQ  
+```
 
 ## Build from source code
 ### Linux
