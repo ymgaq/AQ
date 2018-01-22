@@ -26,7 +26,7 @@ Get them [here](http://github.com/ymgaq/AQ/releases).
 ### AQ configuration
 Set hardware and time control etc. in 'aq_config.txt.'  
 #### Time control on CGOS
-First of all, it is not recommended that users connect the released version as it is to CGOS. The developer is well aware of the capabilities of the released versions and [tested it in advance](http://www.yss-aya.com/cgos/19x19/cross/AQ-2.1.1-4t1g.html) with `4thread/1GPU: i7-6700/GTX1080`. So, you don't need to waste your valuable time and electricity bills.  
+First of all, it is not recommended that users connect the released version as it is to CGOS. The developer is well aware of the capabilities of the released versions and [tested it in advance](http://www.yss-aya.com/cgos/19x19/cross/AQ-2.1.1-4t1g.html) with `4thread/1GPU: i7-6700/GTX1080`.  
 Of course, if you made your own changes to the source code or pb files, that is welcome. Please check your AQ's rating and send pull request!  
   
 The recommended settings are as follows.  
@@ -67,7 +67,7 @@ Build with [cmake](https://cmake.org/) and [TensorFlow](https://www.tensorflow.o
 See [this instruction](https://joe-antognini.github.io/machine-learning/windows-tf-project).  
 
 ## License
-[MIT](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)
+[MIT](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
 
 ## Author
-[Yu Yamaguchi](https://twitter.com/ymg_aq)
+[Yu Yamaguchi](https://twitter.com/ymg_aq)  
