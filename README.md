@@ -1,4 +1,4 @@
-#AQ
+# AQ
 
 AQ is a program of Go game with level of top players.  
 [CGOS](http://www.yss-aya.com/cgos/19x19/standings.html) rating: 3952 ([BayesElo](http://www.yss-aya.com/cgos/19x19/bayes.html))  
