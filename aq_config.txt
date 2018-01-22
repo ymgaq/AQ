@@ -18,7 +18,7 @@
 -never resign =off
 
 ### File settings ###
-# Use 'self match' mode on console for debuging.
+# Use 'self match' mode on console for debug.
 -self match =off
 -save log =on
 -pb path =pb
