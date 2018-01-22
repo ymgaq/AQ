@@ -8,6 +8,7 @@ extern double prob_ptn3x3[65536][256][4];
 extern std::unordered_map<int, std::array<double, 4>> prob_ptn12;
 extern std::unordered_map<int, std::array<double, 2>> prob_ptn_rsp;
 extern std::unordered_set<int> ladder_ptn[2];
+extern std::string working_dir;
 
 class Pattern3x3 {
 public:

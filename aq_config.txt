@@ -5,25 +5,28 @@
 -thread count =4
 
 ### Time contorol setting ###
-# If using 'time_left' command via GTP,
-# set 'time controll' to 'off'.
--main　time[sec] =0
+-main time[sec] =0
 -byoyomi[sec] =5
--time controll =on
+-emergency time[sec] =15
 
 ### Thinking setting ###
 -japanese rule =off
 -komi =7.5
--symmetrical index =0
+-symmetrical index =8
+-use pondering =on
 -mimic go =off
 -never resign =off
 
-### Others ###
+### File settings ###
+# Use 'self match' mode on console for debuging.
 -self match =off
 -save log =on
--master =off
--worker =off
 -pb path =pb
 -resume sgf path =
+
+### Cluster settings ###
+# Not need to change.
+-master =off
+-worker =off
 -worker count =1
--use pondering =on
+

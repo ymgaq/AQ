@@ -8,5 +8,5 @@
 int CallGTP();
 
 extern bool save_log;
-extern bool need_time_controll;
+extern bool need_time_control;
 extern bool use_pondering;

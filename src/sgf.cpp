@@ -100,10 +100,20 @@ void SgfData::ImportData(string file_name) {
 			// Go to the next line if [] is not found.
 			string::size_type open_br = str.find("[");
 			string::size_type close_br = str.find("]");
+
 			if (open_br == string::npos || close_br == string::npos) break;
+
+			if(close_br == 0){
+				str = str.substr(close_br + 1);
+				close_br = str.find("]");
+				open_br = str.find("[");
+			}
 
 			tag = str.substr(0, open_br);
 			in_br = str.substr(open_br + 1, close_br - open_br - 1);
+
+			//std::cerr << "tag: " << tag << " in_br: " << in_br << endl;
+			//getchar();
 
 			// ‹æØ‚è•¶Žš‚ÌƒZƒ~ƒRƒƒ“‚ðtag‚©‚çœ‚­
 			// Remove semicolon from the tag.
@@ -488,6 +498,7 @@ int ImportSGFList(string folder, std::vector<SgfData>& sgf_list) {
 
 			sgf_list.push_back(tmp_sgf_data);
 			sgf_list_cnt++;
+			if(sgf_list_cnt % 10000 == 0) std::cerr << ".";
 		}
 	} while (entry != NULL);
 	closedir(dr);

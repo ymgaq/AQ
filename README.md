@@ -1,22 +1,23 @@
-# AQ
+#AQ  
 
-AQ is a program of Go game with level of expert players.  
-[CGOS](http://www.yss-aya.com/cgos/19x19/standings.html) rating: 3746 (standings)  
+AQ is a program of Go game with level of top players.  
+[CGOS](http://www.yss-aya.com/cgos/19x19/standings.html) rating: 3952 ([BayesElo](http://www.yss-aya.com/cgos/19x19/bayes.html))  
 
 ## Requirement
 ### Windows
 #### AQ (with GPU)
 - OS: 64-bit Windows 7 or later (NOT tested on 8.1/10)  
-- GPU: Nvidia GPU with [CUDA capability](https://developer.nvidia.com/cuda-gpus) of 3.0/3.5/5.2/6.1
+- GPU: Nvidia GPU with [CUDA capability](https://developer.nvidia.com/cuda-gpus) of >3.0  
 - CPU: CPU with SSE 4.2  
+
 #### AQ-mini (with CPU only)
 - OS: 64-bit Windows 7 or later (NOT tested on 8.1/10)  
 - CPU: CPU with SSE 4.2  
+
 ### Linux
 - OS: 64-bit Linux  
-- GPU: Nvidia GPU with [CUDA capability](https://developer.nvidia.com/cuda-gpus) of 3.0/3.5/5.2/6.1  
+- GPU: Nvidia GPU with [CUDA capability](https://developer.nvidia.com/cuda-gpus) of >3.0  
 - CPU: CPU with SSE 4.2  
-- CUDA: CUDA 8.0 and cudnn 5.1  
 
 ## Usage
 ### Pre-compiled executables
@@ -24,36 +25,37 @@ Get them [here](http://github.com/ymgaq/AQ/releases).
 
 ### AQ configuration
 Set hardware and time control etc. in 'aq_config.txt.'  
-#### Time controll on CGOS
-The current version does not support `time_setting` command, so you need to change time setting for runnning it on CGOS. Otherwise, AQ often loses due to timeout.  
+#### Time control on CGOS
+First of all, it is not recommended that users connect the released version as it is to CGOS. The developer is well aware of the capabilities of the released versions and [tested it in advance](http://www.yss-aya.com/cgos/19x19/cross/AQ-2.1.1-4t1g.html) with `4thread/1GPU: i7-6700/GTX1080`.  
+Of course, if you made your own changes to the source code or pb files, that is welcome. Please check your AQ's rating and send pull request!  
+  
+The recommended settings are as follows.  
 
 ```
 -main time[sec] =900  
 -byoyomi[sec] =0  
--time controll =off  
+-emergency time[sec] =15 #set 60 when connecting from outside Japan  
 ```
+
+This version was trained in Komi = 6.5 for the Japanese rule. So, AQ often loses 0.5 point at Black, but that is inevitable.  
 
 ### GoGui setting
 [GoGui](https://sourceforge.net/projects/gogui/files/gogui/1.4.9/) is a graphical interface to Go-engines (programs without own GUI), which use the Go Text Protocol (GTP).  
 See the 'GTP Shell' console to know AQ's thinking log.  
 #### Linux
 command: `(install directory)/AQ`  
-working directory: `(install directory)`  
 
 ```
 (Ex.)  
 /home/user/gogui-1.4.9/AQ/AQ  
-/home/user/gogui-1.4.9/AQ  
 ```
 
 #### Windows
 command: `(install directory)\AQ.exe`  
-working directory: `(install directory)`  
 
 ```
 (Ex.)  
 C:\Users\user\gogui-1.4.9\AQ\AQ.exe  
-C:\Users\user\gogui-1.4.9\AQ  
 ```
 
 ## Build from source code

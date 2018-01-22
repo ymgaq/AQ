@@ -66,10 +66,10 @@ void PrintBoard(Board& b, int v){
  *  盤面をファイルに出力する.
  *  Output the board to the file.
  */
-void PrintBoard(Board& b, int v, std::string file_path) {
+void PrintBoard(Board& b, int v, std::ofstream* log_file) {
 
 	//出力するファイルを開く
-	std::ofstream ofs(file_path, std::ios::app);
+	std::ofstream& ofs = *log_file;
 	if (ofs.fail()) return;
 
 	// x座標を出力
@@ -117,7 +117,6 @@ void PrintBoard(Board& b, int v, std::string file_path) {
 	for (int x=0;x<BSIZE;++x)  ofs << " " << str_x[x] << " ";
 	ofs << endl;
 
-	ofs.close();
 }
 
 void PrintEF(std::string str, std::ofstream& ofs){
@@ -130,10 +129,10 @@ void PrintEF(std::string str, std::ofstream& ofs){
  *  Output the final score.
  */
 void PrintFinalScore(Board& b, int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT],
-		int win_pl, double komi, std::string file_path)
+		int win_pl, double komi, std::ofstream* log_file)
 {
 
-	std::ofstream ofs(file_path, std::ios::app);
+	std::ofstream& ofs = *log_file;
 
 	// 1. 死石を表示する
 	//    Display dead stones.
@@ -316,8 +315,6 @@ void PrintFinalScore(Board& b, int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT],
 
 	PrintEF(ss.str(), ofs);
 
-	ofs.close();
-
 }
 
 
@@ -382,9 +379,9 @@ void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT]){
  *  占有率を表示する
  *  Write occupancy of the vertexes in file.
  */
-void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT], std::string file_path){
+void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT], std::ofstream* log_file){
 
-	std::ofstream ofs(file_path, std::ios::app);
+	std::ofstream& ofs = *log_file;
 	// x座標を出力
 	// Output captions of x coordinate.
 	string str_x = "ABCDEFGHJKLMNOPQRST";
@@ -432,5 +429,62 @@ void PrintOccupancy(int (&game_cnt)[3], int (&owner_cnt)[2][EBVCNT], std::string
 	ofs << "  ";
 	for (int x=0;x<BSIZE;++x)  ofs << " " << str_x[x] << " ";
 	ofs << endl;
+
+}
+
+
+/**
+ *  確率分布をエラーコンソールに表示する
+ *  Display the probability distribution in stderr.
+ */
+void PrintProb(Board& b, std::array<float,BVCNT>& prob){
+
+	// x座標を出力
+	// Output captions of x coordinate.
+	string str_x = "ABCDEFGHJKLMNOPQRST";
+	cerr << "  ";
+	for (int x=0;x<BSIZE;++x)  cerr << " " << str_x[x] << " ";
+	cerr << endl;
+
+	float inv_prob = 0.0;
+	for(auto& p: prob) inv_prob += p;
+	if(inv_prob > 0) inv_prob = 1 / inv_prob;
+	else inv_prob = 1.0;
+
+	for(int y=0;y<BSIZE;++y){
+
+		// 一桁のときインデントを追加
+		// Add indent when single digit.
+		if(BSIZE - y < 10) cerr << " ";
+		// 左下が(A,1)のため、y座標を逆順で出力する
+		// Output y coordinate in reverse order because the lower left is (A,1).
+		cerr << BSIZE - y;
+
+		for (int x=0;x<BSIZE;++x) {
+			int rv = xytor[x][BSIZE - 1 - y];
+			int ev = rtoe[xytor[x][BSIZE - 1 - y]];
+			bool is_star = false;
+			if(	(x == 3 || x == 9 || x == 15) &&
+				(y == 3 || y == 9 || y == 15)) is_star = true;
+
+			if (prob[rv] > 0) {
+				int disp_prob = int((prob[rv] * inv_prob) * 99);
+				if(disp_prob > 9) cerr << " " << disp_prob;
+				else cerr << "  " << disp_prob;
+			}
+			else if(b.color[ev] == 2) cerr << " O ";
+			else if(b.color[ev] == 3) cerr << " X ";
+			else if(is_star) cerr << " + "; // Star
+			else cerr << " . ";
+		}
+
+		if(BSIZE - y < 10) cerr << " ";
+		cerr << BSIZE - y << endl;
+
+	}
+
+	cerr << "  ";
+	for (int x=0;x<BSIZE;++x)  cerr << " " << str_x[x] << " ";
+	cerr << endl;
 
 }

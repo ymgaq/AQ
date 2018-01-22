@@ -14,7 +14,7 @@ using std::cerr;
 using std::endl;
 
 bool save_log = true;
-bool need_time_controll = false;
+bool need_time_control = true;
 bool use_pondering = true;
 
 
@@ -47,6 +47,28 @@ void SendGTP(const char* output_str, ...){
 
 }
 
+void SendCommandList(){
+	SendGTP("= boardsize\n");
+	SendGTP("list_commands\n");
+	SendGTP("clear_board\n");
+	SendGTP("genmove\n");
+	SendGTP("play\n");
+	SendGTP("quit\n");
+	SendGTP("time_left\n");
+	SendGTP("time_settings\n");
+	SendGTP("name\n");
+	SendGTP("protocol_version\n");
+	SendGTP("version\n");
+	SendGTP("komi\n");
+	SendGTP("final_score\n");
+	SendGTP("kgs-time_settings\n");
+	SendGTP("kgs-game_over\n");
+	SendGTP("place_free_handicap\n");
+	SendGTP("fixed_handicap\n");
+	SendGTP("set_free_handicap\n");
+	SendGTP("gogui-play_sequence\n");
+	SendGTP("= \n\n");
+}
 
 void ReadGTP(std::string& input_str){ getline(std::cin, input_str); }
 
@@ -77,9 +99,8 @@ int CallGTP(){
 	int file_cnt = 0;
 	if(save_log){
 		std::stringstream ss;
-		ss << "log" << spl_str << file_cnt << ".txt";
-		tree.log_path = ss.str();
-		std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
+		ss << working_dir << "log" << spl_str << file_cnt << ".txt";
+		tree.log_file = new std::ofstream(ss.str(), std::ofstream::out);
 	}
 
 	// 3. 入力棋譜がある場合は読みだす
@@ -87,10 +108,14 @@ int CallGTP(){
 	SgfData sgf;
 	if(resume_sgf_path != ""){
 		SgfData sgf_read;
-		sgf_read.ImportData(resume_sgf_path);
+		sgf_read.ImportData(working_dir + resume_sgf_path);
 		sgf_read.GenerateBoard(b, sgf_read.move_cnt);
 		sgf = sgf_read;
 	}
+
+#ifdef OnlineMatch
+	SendCommandList();
+#endif
 
 	// 4. GTPプロトコルによる通信を開始する
 	//    Start communication with the GTP protocol.
@@ -117,7 +142,7 @@ int CallGTP(){
 			(tree.left_time > 25 || tree.byoyomi != 0) &&
 			use_pondering)
 		{
-			double time_limit = 300.0;
+			double time_limit = 100.0;
 			tree.SearchTree(b, time_limit, win_rate, false, true);
 		}
 
@@ -131,7 +156,7 @@ int CallGTP(){
 		}
 		else if (FindStr(gtp_str, "name")) SendGTP("= AQ\n\n");
 		else if (FindStr(gtp_str, "protocol_version")) SendGTP("= 2.0\n\n");
-		else if (FindStr(gtp_str, "version")) SendGTP("= 2.0.3\n\n");
+		else if (FindStr(gtp_str, "version")) SendGTP("= 2.1.1\n\n");
 		else if (FindStr(gtp_str, "boardsize")) {
 			// Board size setting. (only corresponding to 19 size)
 			// "=boardsize 19", "=boardsize 13", ...
@@ -142,26 +167,7 @@ int CallGTP(){
 		{
 			// 対応しているコマンド一覧を送る
 			// Send the corresponding command list.
-			SendGTP("= boardsize\n");
-			SendGTP("list_commands\n");
-			SendGTP("clear_board\n");
-			SendGTP("genmove\n");
-			SendGTP("play\n");
-			SendGTP("quit\n");
-			SendGTP("time_left\n");
-			SendGTP("time_settings\n");
-			SendGTP("name\n");
-			SendGTP("protocol_version\n");
-			SendGTP("version\n");
-			SendGTP("komi\n");
-			SendGTP("final_score\n");
-			SendGTP("kgs-time_settings\n");
-			SendGTP("kgs-game_over\n");
-			SendGTP("place_free_handicap\n");
-			SendGTP("set_free_handicap\n");
-			SendGTP("gogui-play_sequence\n");
-			SendGTP("gogui-analyze_commands\n");
-			SendGTP("= \n\n");
+			SendCommandList();
 		}
 		else if (FindStr(gtp_str, "clear_board"))
 		{
@@ -173,12 +179,26 @@ int CallGTP(){
 
 			if(is_master) cluster.SendCommand("clear_board");
 
+			// 棋譜から再開 Resume from SGF file.
+			if(resume_sgf_path != ""){
+				SgfData sgf_read;
+				sgf_read.ImportData(working_dir + resume_sgf_path);
+				sgf_read.GenerateBoard(b, sgf_read.move_cnt);
+				sgf = sgf_read;
+				tree.UpdateRootNode(b);
+
+				if(is_master){
+					cerr << "Cluster cannot resume from SGF file.\n";
+					break;
+				}
+			}
+
 			if(save_log){
 				++file_cnt;
 				std::stringstream ss;
-				ss << "log" << spl_str << file_cnt << ".txt";
-				tree.log_path = ss.str();
-				std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
+				ss << working_dir << "log" << spl_str << file_cnt << ".txt";
+				if(tree.log_file != NULL) tree.log_file->close();
+				tree.log_file = new std::ofstream(ss.str(), std::ofstream::out);
 			}
 
 			is_playing = is_worker? true : false;
@@ -217,6 +237,8 @@ int CallGTP(){
 				std::fprintf(stderr, "left time: %d[sec]\n", left_time);
 			}
 
+			need_time_control = false;
+
 			SendGTP("= \n\n");
 		}
 		else if (FindStr(gtp_str, "genmove")) {
@@ -225,7 +247,7 @@ int CallGTP(){
 			// "=genmove b", "=genmove white", ...
 
 			auto t1 = std::chrono::system_clock::now();
-			cerr << "thinking...\n";
+			//cerr << "thinking...\n";
 
 			pl = FindStr(gtp_str, "B", "b")? 1 : 0;
 			if(pl != b.my){
@@ -247,7 +269,7 @@ int CallGTP(){
 				//    Play mimic move if play_mimic is true.
 				int v = b.prev_move[b.her];
 
-				if(DistBetween(v, EBVCNT/2) < 8 || v == PASS){
+				if(DistBetween(v, EBVCNT/2) < 5 || v == PASS){
 					// 中央付近に打たれたら自力で考える.
 					// Think by itself if the previous move is near the center.
 					play_mimic = false;
@@ -282,12 +304,17 @@ int CallGTP(){
 				{
 					// 合議の結果を反映する
 					// Reflect the result of consultation.
-					next_move = cluster.Consult(tree, tree.log_path);
+					next_move = cluster.Consult(tree, tree.log_file);
 				}
 			}
-
+#ifdef OnlineMatch
+			double resign_value = 0.2;
+#else
+			double resign_value = 0.1;
+#endif
 			if(b.IsMimicGo()){ next_move = EBVCNT/2; }
-			else if(win_rate < 0.1){
+			else if(win_rate < resign_value){
+
 				// 1000回プレイアウトして本当に負けているか確認する
 				// Roll out 1000 times to check if really losing.
 				Board b_;
@@ -297,25 +324,52 @@ int CallGTP(){
 					int result = PlayoutLGR(b_, tree.lgr, tree.komi);
 					if(b.my == std::abs(result)) ++win_cnt;
 				}
-				if((double)win_cnt / 1000 < 0.25) next_move = PASS;
+				if((double)win_cnt / 1000 < 0.3) next_move = PASS;
 			}
 
 			// c. 局面を進める. Play the move.
 			b.PlayLegal(next_move);
 			tree.UpdateRootNode(b);
 
-			// d. 着手のGTPコマンドを送る. Send response of the next move.
+			// d. ログファイルを更新する. Update logs.
+			sgf.AddMove(next_move);
+			if(!is_worker){
+
+				PrintBoard(b, next_move);
+				if(tree.log_file != NULL){
+					PrintBoard(b, next_move, tree.log_file);
+					//PrintOccupancy(tree.stat.game, tree.stat.owner, tree.log_file);
+				}
+
+				if(save_log){
+					std::stringstream ss;
+					ss << working_dir << "log" << spl_str << file_cnt << ".sgf";
+					sgf.ExportData(ss.str());
+				}
+
+				if(b.prev_move[b.her] == PASS && b.prev_move[b.my] == PASS){
+					if(tree.left_time > 5 || tree.byoyomi != 0){
+						tree.PrintResult(b);
+					}
+					else{
+						SendGTP("= pass\n\n");
+						tree.PrintResult(b);
+						continue;
+					}
+				}
+			}
+
+			// e. 着手のGTPコマンドを送る. Send response of the next move.
 			string str_nv = CoordinateString(next_move);
 			if(next_move == PASS){
-				if(!never_resign && win_rate < 0.1) SendGTP("= resign\n\n");
+				if(!never_resign && win_rate < resign_value) SendGTP("= resign\n\n");
 				else SendGTP("= pass\n\n");
 			}
 			else{
 				SendGTP("= %s\n\n", str_nv.c_str());
 			}
 
-
-			// e. 子プロセスに手を送信する.
+			// f. 子プロセスに手を送信する.
 			//    Send play command to the remote processes.
 			if(is_master){
 				string cmd_str = (b.my == 0)? "play b " : "play w ";
@@ -323,29 +377,8 @@ int CallGTP(){
 				cluster.SendCommand(cmd_str);
 			}
 
-			// f. ログファイルを更新する. Update logs.
-			sgf.AddMove(next_move);
-			if(!is_worker){
-
-				PrintBoard(b, next_move);
-				if(tree.log_path != ""){
-					PrintBoard(b, next_move, tree.log_path);
-					//PrintOccupancy(tree.stat.game, tree.stat.owner, tree.log_path);
-				}
-
-				if(save_log){
-					std::stringstream ss;
-					ss << "log" << spl_str << file_cnt << ".sgf";
-					sgf.ExportData(ss.str());
-				}
-
-				if(b.prev_move[b.her] == PASS && b.prev_move[b.my] == PASS){
-					tree.PrintResult(b);
-				}
-			}
-
 			// g. 残り持ち時間を更新する. Update remaining time.
-			if(need_time_controll){
+			if(need_time_control){
 				auto t2 = std::chrono::system_clock::now();
 				double elapsed_time = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2-t1).count()/1000;
 				tree.left_time = std::max(0.0, (double)tree.left_time - elapsed_time);
@@ -393,14 +426,47 @@ int CallGTP(){
 				--b.pass_cnt[b.her];
 			}
 
+			if(!is_worker && save_log){
+				std::stringstream ss;
+				tree.PrintChildInfo(tree.root_node_idx, next_move, ss, true);
+				std::ofstream& ofs = *tree.log_file;
+				ofs << ss.str();
+				std::cerr << ss.str();
+			}
+
 			// c. 局面を進める. Play the move.
 			b.PlayLegal(next_move);
 			tree.UpdateRootNode(b);
 
-			// d. GTPコマンドを送信. Send GTP response.
+			// d. ログファイルを更新する. Update logs.
+			sgf.AddMove(next_move);
+			if(!is_worker){
+				if(tree.log_file != NULL) PrintBoard(b, next_move, tree.log_file);
+				PrintBoard(b, next_move);
+
+				if(save_log){
+					std::stringstream ss;
+					ss << working_dir << "log" << spl_str << file_cnt << ".sgf";
+					sgf.ExportData(ss.str());
+				}
+
+				if(b.prev_move[b.her] == PASS && b.prev_move[b.my] == PASS){
+					if(tree.left_time > 5 || tree.byoyomi != 0){
+						tree.PrintResult(b);
+					}
+					else{
+						SendGTP("= \n\n");
+						tree.PrintResult(b);
+						continue;
+					}
+
+				}
+			}
+
+			// e. GTPコマンドを送信. Send GTP response.
 			SendGTP("= \n\n");
 
-			// e. マネ碁をしているとき、相手がツケてきたらやめる
+			// f. マネ碁をしているとき、相手がツケてきたらやめる
 			//    Stop mimic go if the opponent's move is Tsuke.
 			if(play_mimic && b.move_cnt < 11 && next_move < PASS){
 				int my_color = b.my + 2;
@@ -413,22 +479,6 @@ int CallGTP(){
 
 			if(is_master) cluster.SendCommand(gtp_str);
 
-			// f. ログファイルを更新する. Update logs.
-			sgf.AddMove(next_move);
-			if(!is_worker){
-				if(tree.log_path != "") PrintBoard(b, next_move, tree.log_path);
-				PrintBoard(b, next_move);
-
-				if(save_log){
-					std::stringstream ss;
-					ss << "log" << spl_str << file_cnt << ".sgf";
-					sgf.ExportData(ss.str());
-				}
-
-				if(b.prev_move[b.her] == PASS && b.prev_move[b.my] == PASS){
-					tree.PrintResult(b);
-				}
-			}
 		}
 		else if (FindStr(gtp_str, "undo", "Undo"))
 		{
@@ -467,7 +517,7 @@ int CallGTP(){
 			if(!is_worker){
 				if(save_log){
 					std::stringstream ss;
-					ss << "log" << spl_str << file_cnt << ".sgf";
+					ss << working_dir << "log" << spl_str << file_cnt << ".sgf";
 					sgf.ExportData(ss.str());
 				}
 			}
@@ -523,7 +573,7 @@ int CallGTP(){
 
 			Node *pn = &tree.node[tree.root_node_idx];
 			std::vector<Child*> rc;
-			SortChildren(pn, rc);
+			tree.SortChildren(pn, rc);
 			Child *rc0 = rc[0];
 
 			double win_rate = tree.BranchRate(rc0);
@@ -544,28 +594,6 @@ int CallGTP(){
 				<< endl;
 
 			SendGTP(ss.str().c_str());
-		}
-		else if (FindStr(gtp_str, "gogui-analyze_commands")) {
-						
-			SendGTP("= gfx/Print Best Sequence/best_sequence\n");
-			//SendGTP("none/Togle Live Best Sequence/toggle_live_best_sequence %m\n");
-			//SendGTP("hpstring/Print Moves/chid_info %m\n");
-			SendGTP("\n\n");
-
-		}
-		else if (FindStr(gtp_str, "toggle_live_best_sequence")) {
-
-			tree.live_best_sequence = !(tree.live_best_sequence);
-			SendGTP("= \n\n");
-
-		}
-		else if (FindStr(gtp_str, "best_sequence")) {
-
-			tree.SearchTree(b, 0.0, win_rate, false, false);
-			std::stringstream ss;
-			tree.PrintGFX(ss);
-			SendGTP("= %s\n\n", ss.str().c_str());
-
 		}
 		else if (FindStr(gtp_str, "chid_info")) {
 
@@ -613,10 +641,24 @@ int CallGTP(){
 
 			SendGTP("= \n\n");
 		}
+		else if (FindStr(gtp_str, "time_settings"))
+		{
+			// 時間を設定する
+			// Set main and byoyomi time.
+			// "=time_settings 30 60 3", ...
+			SplitString(gtp_str, " ", split_list);
+			if(split_list[0] == "=") split_list.erase(split_list.begin());
+
+			tree.main_time = (double)stoi(split_list[1]);
+			tree.left_time = tree.main_time;
+			tree.byoyomi = (double)stoi(split_list[2]);
+
+			SendGTP("= \n\n");
+		}
 		else if (FindStr(gtp_str, "set_free_handicap"))
 		{
 			// 置き石を配置する
-			// "=place_free_handicap 2"
+			// "=set_free_handicap D4 ..."
 			SplitString(gtp_str, " ", split_list);
 			if(split_list[0] == "=") split_list.erase(split_list.begin());
 
@@ -650,16 +692,16 @@ int CallGTP(){
 			SendGTP("= \n\n");
 			cerr << "set free handicap.\n";
 		}
-		else if (FindStr(gtp_str, "place_free_handicap"))
+		else if (FindStr(gtp_str, "fixed_handicap") || FindStr(gtp_str, "place_free_handicap"))
 		{
-			// 置き石を配置する
-			// "=place_free_handicap 2"
+			// 置き石を配置する. Place fixed handicap stones.
+			// "=fixed_handicap 2"
 			SplitString(gtp_str, " ", split_list);
 			if(split_list[0] == "=") split_list.erase(split_list.begin());
 
 			if(split_list.size() >= 2){
-				int x_[9] = {16,4,16,4,16,4,10,10,10};
-				int y_[9] = {16,4,4,16,10,10,16,4,10};
+				int x_[9] = {4,16,4,16,4,16,10,10,10};//{16,4,16,4,16,4,10,10,10};
+				int y_[9] = {4,16,16,4,10,10,4,16,10};//{16,4,4,16,10,10,16,4,10};
 				int stones[8][9] = {{0,1},{0,1,2},{0,1,2,3},{0,1,2,3,8},
 									{0,1,2,3,4,5}, {0,1,2,3,4,5,8},{0,1,2,3,4,5,6,7},
 									{0,1,2,3,4,5,6,7,8}};
@@ -691,18 +733,6 @@ int CallGTP(){
 			// 引き継ぎ対局で、すべての手を受信する
 			// "=gogui-play_sequence B R16 W D16 B Q3 W D3 ..."
 
-			b.Clear();
-			tree.InitBoard();
-			sgf.Clear();
-			if(save_log){
-				std::stringstream ss;
-				ss << "log" << spl_str << file_cnt << ".txt";
-				tree.log_path = ss.str();
-				std::ofstream ofs(ss.str()); ofs.close(); // Clear the file.
-			}
-			is_playing = is_worker? true : false;
-			play_mimic = cfg_mimic;
-
 			SplitString(gtp_str, " ", split_list);
 			if(split_list[0] == "=") split_list.erase(split_list.begin());
 
@@ -732,7 +762,7 @@ int CallGTP(){
 				// ログファイルを更新する. Update logs.
 				sgf.AddMove(next_move);
 				if(!is_worker){
-					if(tree.log_path != "") PrintBoard(b, next_move, tree.log_path);
+					if(tree.log_file != NULL) PrintBoard(b, next_move, tree.log_file);
 				}
 			}
 
@@ -740,7 +770,7 @@ int CallGTP(){
 			if(is_master) cluster.SendCommand(gtp_str);
 			if(!is_worker && save_log){
 				std::stringstream ss;
-				ss << "log" << spl_str << file_cnt << ".sgf";
+				ss << working_dir << "log" << spl_str << file_cnt << ".sgf";
 				sgf.ExportData(ss.str());
 			}
 

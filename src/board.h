@@ -46,6 +46,9 @@ inline constexpr int NTZ(int64 x) noexcept {
 }
 
 extern const double response_w[4][2];
+extern const double semeai_w[2][2];
+
+//#define USE_52FEATURE
 
 /**************************************************************
  *
@@ -260,6 +263,8 @@ private:
 	void RemoveRen(int v);
 	bool IsSelfAtariNakade(int v) const;
 	bool IsSelfAtari(int pl, int v) const;
+	bool Semeai2(std::vector<int>& patr_rens, std::vector<int>& her_libs);
+	bool Semeai3(std::vector<int>& lib3_rens, std::vector<int>& her_libs);
 	void UpdatePrevPtn(int v);
 	void SubPrevPtn();
 	void AddProb(int pl, int v, double add_prob);
@@ -278,6 +283,11 @@ public:
 	// Stone color.
 	// empty->0, outer boundary->1, white->2, black->3
 	int color[EBVCNT];
+
+	// n手前のcolorの履歴
+	// History of color information
+	// prev_color[n]: color at (n+1) moves before
+	int prev_color[7][EBVCNT];
 
 	// 空点の配列. [0, empty_cnt-1]の範囲で空点の座標を格納する
 	// List of empty vertexes, containing their positions in range of [0, empty_cnt-1].
@@ -334,9 +344,6 @@ public:
 	// Probability of each vertex.
 	double prob[2][EBVCNT];
 
-	// Flag indicating whether a stone has been placed.
-	bool is_placed[2][EBVCNT];
-
 	// 3x3 patterns.
 	Pattern3x3 ptn[EBVCNT];
 
@@ -350,6 +357,7 @@ public:
 	// ナカデやアタリを逃げる手など、高い確率がつきやすい手
 	// Reflex move, such as Nakade or save stones in Atari.
 	int response_move[4];
+	std::vector<int> semeai_move[2];
 
 	// パスをした回数. (日本ルール用)
 	// Number of pass. (for Japanese rule)

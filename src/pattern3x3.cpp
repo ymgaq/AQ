@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+
 #include "pattern3x3.h"
 
 using std::cerr;
@@ -12,6 +13,7 @@ double prob_ptn3x3[65536][256][4];
 std::unordered_map<int, std::array<double, 4>> prob_ptn12;
 std::unordered_map<int, std::array<double, 2>> prob_ptn_rsp;
 std::unordered_set<int> ladder_ptn[2];
+std::string working_dir = "";
 
 
 /**
@@ -37,9 +39,11 @@ void ImportProbPtn3x3() {
 	string str;
 	std::stringstream ss;
 
+	std::string dir_path = working_dir;
+
 	// 2. 3x3パターン
 	//    3x3 patterns.
-	ss << "prob_ptn3x3.txt";
+	ss << dir_path << "prob_ptn3x3.txt";
 	ifs.open(ss.str());
 	if (ifs.fail()) cerr << "file could not be opened: prob_ptn3x3.txt" << endl;
 
@@ -71,7 +75,7 @@ void ImportProbPtn3x3() {
 	// 3. responseパターン
 	//    Response pattern
 	ss.str("");
-	ss << "prob_ptn_rsp.txt";
+	ss << dir_path << "prob_ptn_rsp.txt";
 	ifs.open(ss.str());
 	if (ifs.fail()) cerr << "file could not be opened: prob_ptn_rsp.txt" << endl;
 
@@ -95,8 +99,8 @@ void ImportProbPtn3x3() {
 	// 4. 12点パターン
 	//    Extended 12 point pattern.
 	ss.str("");
-	ss << "prob_ptn12.txt";
-	ifs.open("prob_ptn12.txt");
+	ss << dir_path << "prob_ptn12.txt";
+	ifs.open(ss.str());
 	if (ifs.fail()) cerr << "file could not be opened: prob_ptn12.txt" << endl;
 
 	while (getline(ifs, str)) {

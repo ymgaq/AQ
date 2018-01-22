@@ -6,7 +6,12 @@ using std::cerr;
 using std::endl;
 
 int cfg_sym_idx = 0;
-constexpr int feature_cnt = 49;
+
+#ifdef USE_52FEATURE
+	constexpr int feature_cnt = 52;
+#else
+	constexpr int feature_cnt = 49;
+#endif
 
 /**
  *  着手確率を予測するネットワーク
@@ -19,8 +24,8 @@ void PolicyNet(Session* sess, std::vector<FeedTensor>& ft_list,
 
 	prob_list.clear();
 	int ft_cnt = (int)ft_list.size();
-	Tensor pn_x(DT_FLOAT, TensorShape({ft_cnt, BVCNT, feature_cnt}));
-	auto x_eigen = pn_x.tensor<float, 3>();
+	Tensor x(DT_FLOAT, TensorShape({ft_cnt, BVCNT, feature_cnt}));
+	auto x_eigen = x.tensor<float, 3>();
 	Tensor sm_temp(DT_FLOAT, TensorShape());
 	sm_temp.scalar<float>()() = (float)temp;
 
@@ -45,11 +50,15 @@ void PolicyNet(Session* sess, std::vector<FeedTensor>& ft_list,
 			}
 		}
 	}
-
-	inputs = {{"x_input", pn_x},{"temp", sm_temp}};
+#ifdef USE_52FEATURE
+	inputs = {{"x", x},{"temp", sm_temp}};
+	sess->Run(inputs,{"pfc/policy"},{}, &outputs);
+#else
+	inputs = {{"x_input", x},{"temp", sm_temp}};
 	sess->Run(inputs,{"fc/yfc"},{}, &outputs);
+#endif
 
-	auto output_v = outputs[0].matrix<float>();
+	auto policy = outputs[0].matrix<float>();
 
 	for(int i=0;i<ft_cnt;++i){
 		std::array<double, EBVCNT> prob;
@@ -58,13 +67,13 @@ void PolicyNet(Session* sess, std::vector<FeedTensor>& ft_list,
 		for(int j=0;j<BVCNT;++j){
 			int v = rtoe[j];
 
-			if(sym_idx == 0) prob[v] = (double)output_v(i, j);
-			else if(sym_idx > 7) prob[v] = (double)output_v(i, sv.rv[sym_idxs[i]][j][1]);
-			else prob[v] = (double)output_v(i, sv.rv[sym_idx][j][1]);
+			if(sym_idx == 0) prob[v] = (double)policy(i, j);
+			else if(sym_idx > 7) prob[v] = (double)policy(i, sv.rv[sym_idxs[i]][j][1]);
+			else prob[v] = (double)policy(i, sv.rv[sym_idx][j][1]);
 
 			// 3線より中央側のシチョウを逃げる手の確率を下げる
 			// Reduce probability of moves escaping from Ladder.
-			if(ft_list[i].feature[j][46] != 0 && DistEdge(v) > 2) prob[v] *= 0.001;
+			if(ft_list[i].feature[j][LADDERESC] != 0 && DistEdge(v) > 2) prob[v] *= 0.001;
 		}
 		prob_list.push_back(prob);
 	}
@@ -82,10 +91,12 @@ void ValueNet(Session* sess, std::vector<FeedTensor>& ft_list,
 
 	eval_list.clear();
 	int ft_cnt = (int)ft_list.size();
-	Tensor vn_x(DT_FLOAT, TensorShape({ft_cnt, BVCNT, feature_cnt}));
+	Tensor x(DT_FLOAT, TensorShape({ft_cnt, BVCNT, feature_cnt}));
+	auto x_eigen = x.tensor<float, 3>();
+#ifndef USE_52FEATURE
 	Tensor vn_c(DT_FLOAT, TensorShape({ft_cnt, BVCNT, 1}));
-	auto x_eigen = vn_x.tensor<float, 3>();
 	auto c_eigen = vn_c.tensor<float, 3>();
+#endif
 
 	std::vector<std::pair<string, Tensor>> inputs;
 	std::vector<Tensor> outputs;
@@ -98,17 +109,23 @@ void ValueNet(Session* sess, std::vector<FeedTensor>& ft_list,
 				else if(sym_idx > 7) x_eigen(i, j, k) = ft_list[i].feature[sv.rv[sym_idx_rand][j][0]][k];
 				else x_eigen(i, j, k) = ft_list[i].feature[sv.rv[sym_idx][j][0]][k];
 			}
+#ifndef USE_52FEATURE
 			c_eigen(i,j,0) = (float)ft_list[i].color;
+#endif
 		}
 	}
 
-	inputs = {{"vn_x", vn_x},{"vn_c", vn_c}};
+#ifdef USE_52FEATURE
+	inputs = {{"x", x},};
+	sess->Run(inputs,{"vfc/value"},{}, &outputs);
+#else
+	inputs = {{"vn_x", x},{"vn_c", vn_c}};
 	sess->Run(inputs,{"fc2/yfc"},{}, &outputs);
-//	sess->Run(inputs,{"v_fc2/yfc"},{}, &outputs);
+#endif // USE_52FEATURE
 
-	auto out_eigen = outputs[0].matrix<float>();
+	auto value = outputs[0].matrix<float>();
 	for(int i=0;i<ft_cnt;++i){
-		eval_list.push_back((float)out_eigen(i));
+		eval_list.push_back((float)value(i));
 	}
 
 }

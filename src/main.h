@@ -7,10 +7,9 @@
 #include "playout.h"
 #include "print.h"
 #include "gtp.h"
-//#include "do_something.h"
+//#include "extra/do_something.h"
 
 
 void ReadConfiguration(int argc, char **argv);
 void SelfMatch();
-
 

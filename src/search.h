@@ -16,6 +16,7 @@
 
 // Flag to use only CPU.
 //#define CPU_ONLY
+//#define OnlineMatch
 
 /**************************************************************
  *
@@ -41,6 +42,7 @@ public:
 	// 置換表のサイズ
 	// Size of the transposition table.
 #ifndef CPU_ONLY
+	//const int node_limit = 524297;	// ~21GB
 	const int node_limit = 65537;	// ~2.6GB
 	//const int node_limit = 32771;	// ~1.3GB
 	//const int node_limit = 16411;	// ~650MB
@@ -93,8 +95,10 @@ public:
 	int extension_cnt;
 	std::atomic<bool> stop_think;
 
-	std::string log_path;
-	bool live_best_sequence;
+	std::ofstream* log_file;
+	bool use_dirichlet_noise;
+
+	std::unordered_map<int64, std::unordered_set<int>> book;
 
 	Tree();
 	Tree(std::string sl_path, std::string vl_path, std::vector<int>& gpu_list);
@@ -111,6 +115,7 @@ public:
 	void DeleteNodeIndex(int node_idx);
 	int UpdateRootNode(Board& b);
 	double BranchRate(Child* pc);
+	void SortChildren(Node* pn, std::vector<Child*>& child_list);
 
 	double SearchBranch(Board& b, int node_idx, double& value_result,
 		std::vector<std::pair<int, int>>& search_route, LGR& lgr_, Statistics& stat_);
@@ -124,17 +129,17 @@ public:
 
 	void PrintResult(Board& b);
 	std::string BestSequence(int node_idx, int head_move, int max_move=7);
-	void PrintGFX(std::ostream& ost);
 	void PrintChildInfo(int node_idx, std::ostream& ost);
+	void PrintChildInfo(int node_idx, int next_move, std::ostream& ost, bool is_opp=false);
 
 };
 
-void PrintLog(std::string log_path, const char* output_text, ...);
-void SortChildren(Node* pn, std::vector<Child*>& child_list);
+void PrintLog(std::ofstream* log_file, const char* output_text, ...);
 std::string CoordinateString(int v);
 
 extern double cfg_main_time;
 extern double cfg_byoyomi;
+extern double cfg_emer_time;
 extern int cfg_thread_cnt;
 extern int cfg_gpu_cnt;
 extern double cfg_komi;

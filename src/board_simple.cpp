@@ -290,10 +290,12 @@ bool BoardSimple::IsSeki(int v) const{
 	// 隣接する空点が2以上 or 両方の石が隣接しないとき -> false
 	// Return false when empty vertexes are more than 2 or
 	// both stones are not in neighboring positions.
-	if(	ptn[v].EmptyCnt() > 1 	||
+	if(	!ptn[v].IsPreAtari()	||
+		ptn[v].EmptyCnt() > 1 	||
 		ptn[v].StoneCnt(0) == 0 ||
 		ptn[v].StoneCnt(1) == 0	) return false;
 
+	int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
 	std::vector<int> nbr_ren_idxs;
 	for(int i=0;i<4;++i){
 		int v_nbr = v + VSHIFT[i];	// neighboring position
@@ -305,13 +307,25 @@ bool BoardSimple::IsSeki(int v) const{
 			// Return false when the liberty number is not 2 or the size if 1.
 			if(!ptn[v].IsPreAtari(i)) return false;
 			else if(ren[ren_idx[v_nbr]].size == 1 &&
-					ptn[v].StoneCnt(color[v_nbr] - 2) == 1)	return false;
+					ptn[v].StoneCnt(color[v_nbr] - 2) == 1){
+				for(int j=0;j<4;++j){
+					int v_nbr2 = v_nbr + VSHIFT[j];
+					if(v_nbr2 != v && color[v_nbr2] == 0)
+					{
+						int nbr_cnt = ptn[v_nbr2].StoneCnt(color[v_nbr] - 2);
+						if(nbr_cnt == 1) return false;
+					}
+				}
+			}
 
 			nbr_ren_idxs.push_back(ren_idx[v_nbr]);
 		}
+		else if(color[v_nbr] == 0){
+			lib_bits_tmp[etor[v_nbr]/64] |= (0x1ULL << (etor[v_nbr] % 64));
+		}
 	}
 
-	int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
+	//int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
 	for(auto nbr_idx: nbr_ren_idxs)	{
 		for(int i=0;i<6;++i){
 			lib_bits_tmp[i] |= ren[nbr_idx].lib_bits[i];
@@ -344,11 +358,13 @@ bool BoardSimple::IsSeki(int v) const{
 
 		// 双方に目がある特殊セキか
 		// Check whether Seki where both Rens have an eye.
+		int eye_cnt = 0;
 		for(int i=0;i<6;++i){
 			while(lib_bits_tmp[i] != 0){
 				int ntz = NTZ(lib_bits_tmp[i]);
 				int v_seki = rtoe[ntz + i * 64];
-				if(IsEyeShape(0, v_seki) || IsEyeShape(1, v_seki)) return true;
+				if(IsEyeShape(0, v_seki) || IsEyeShape(1, v_seki)) ++eye_cnt;
+				if(eye_cnt >= 2 || IsFalseEye(v_seki)) return true;
 
 				lib_bits_tmp[i] ^= (0x1ULL << ntz);
 			}
@@ -723,26 +739,63 @@ inline bool BoardSimple::IsSelfAtariNakade(int v) const{
 
 	// 周囲4点の連が大きさ2～4のとき、ナカデになるかを調べる
 	// Check whether it will be Nakade shape when size of urrounding Ren is 2~4.
-	forEach4Nbr(v,v_nbr,{
-		if(color[v_nbr] >= 2){
-			if(ren[ren_idx[v_nbr]].size >= 2 && ren[ren_idx[v_nbr]].size <= 4){
-				unsigned long long space_hash = zobrist.hash[0][0][v - v_nbr + EBVCNT/2];
-				int v_tmp = v_nbr;
-				do{
-					// 盤中央からの相対座標のzobristハッシュ
-					// Calculate Zobrist Hash relative to the center position.
-					space_hash ^= zobrist.hash[0][0][v_tmp - v_nbr + EBVCNT/2];
-					v_tmp = next_ren_v[v_tmp];
-				} while(v_tmp != v_nbr);
+	std::vector<int> checked_idx[2];
+		int64 space_hash[2] = {zobrist.hash[0][0][EBVCNT/2], zobrist.hash[0][0][EBVCNT/2]};
+		bool under5[2] = {true, true};
+		int64 lib_bits[2][6] = {{0,0,0,0,0,0}, {0,0,0,0,0,0}};
 
-				if(nakade.vital.find(space_hash) != nakade.vital.end()){
-					return true;
+		forEach4Nbr(v,v_nbr,{
+			if(color[v_nbr] >= 2){
+				int pl = color[v_nbr] - 2;
+				if(ren[ren_idx[v_nbr]].size < 5){
+					if(find(checked_idx[pl].begin(), checked_idx[pl].end(), ren_idx[v_nbr])
+						== checked_idx[pl].end())
+					{
+						checked_idx[pl].push_back(ren_idx[v_nbr]);
+
+						for(int i=0;i<6;++i)
+							lib_bits[pl][i] |= ren[ren_idx[v_nbr]].lib_bits[i];
+
+						int v_tmp = v_nbr;
+						do{
+							// 盤中央からの相対座標のzobristハッシュ
+							// Calculate Zobrist Hash relative to the center position.
+							space_hash[pl] ^= zobrist.hash[0][0][v_tmp - v + EBVCNT/2];
+							forEach4Nbr(v_tmp, v_nbr2, {
+								if(	color[v_nbr2] == int(pl == 0) + 2){
+									if(ren[ren_idx[v_nbr2]].lib_cnt != 2){
+										under5[pl] = false;
+										break;
+									}
+									else{
+										for(int i=0;i<6;++i)
+											lib_bits[pl][i] |= ren[ren_idx[v_nbr2]].lib_bits[i];
+									}
+								}
+							});
+
+							v_tmp = next_ren_v[v_tmp];
+						} while(v_tmp != v_nbr);
+					}
 				}
+				else under5[pl] = false;
 			}
-		}
-	});
+		});
 
-	return false;
+		if(under5[0] && nakade.vital.find(space_hash[0]) != nakade.vital.end())
+		{
+			int lib_cnt = 0;
+			for(auto lb:lib_bits[0]) lib_cnt += (int)popcnt64(lb);
+			if(lib_cnt == 2) return true;
+		}
+		else if(under5[1] && nakade.vital.find(space_hash[1]) != nakade.vital.end())
+		{
+			int lib_cnt = 0;
+			for(auto lb:lib_bits[1]) lib_cnt += (int)popcnt64(lb);
+			if(lib_cnt == 2) return true;
+		}
+
+		return false;
 
 }
 

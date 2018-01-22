@@ -1,9 +1,18 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <chrono>
 
 #include "ladder.h"
 #include "feed_tensor.h"
+#include "sgf.h"
+
+
+#ifdef USE_52FEATURE
+	constexpr int feature_cnt = 52;
+#else
+	constexpr int feature_cnt = 49;
+#endif
 
 
 /**
@@ -33,7 +42,9 @@ FeedTensor::FeedTensor(){
 
 	for(auto& i:feature){
 		for(auto& j:i) j = 0.0;
+#ifndef USE_52FEATURE
 		i[4] = 1.0;	//ones
+#endif
 	}
 	next_move = PASS;
 	color = 0;
@@ -56,13 +67,14 @@ void FeedTensor::Clear(){
 
 	for(auto& i:feature){
 		for(auto& j:i) j = 0.0;
+#ifndef USE_52FEATURE
 		i[4] = 1.0;	//ones
+#endif
 	}
 	next_move = PASS;
 	color = 0;
 
 }
-
 
 /**
  *  盤面から特徴を抽出してFeedTensorに入力する
@@ -74,36 +86,52 @@ void FeedTensor::Set(Board& b, int nv){
 	next_move = nv;
 	color = b.my;
 
+#ifndef USE_52FEATURE
 	// 1. turn since(5-12)を更新
 	//    Update turn since (5-12).
 	for(int i=0, i_max=std::min(8,int(b.move_cnt));i<i_max;++i){
 		int v = b.move_history[b.move_cnt - 1 - i];
 		if(v == PASS) continue;
-		feature[etor[v]][5 + i] = 1.0;
+		feature[etor[v]][TURNSINCE + i] = 1.0;
 	}
+#endif //USE_52FEATURE
 
 	for (int rv=0;rv<BVCNT;++rv) {
 		int v = rtoe[rv];
 		int v_color = b.color[v];
 		int pl_color[2] = { 2 + int(b.my == 1), 2 + int(b.my == 0) };
 
+#ifdef USE_52FEATURE
+		// 1. color(16)を更新. Update color (16)
+		feature[rv][COLOR] = (float)color;
+
+		// 2. stones(0-15)を更新. Update stone (0-15).
+		feature[rv][0] = float(v_color == pl_color[0]);
+		feature[rv][1] = float(v_color == pl_color[1]);
+		for(int i=1;i<8;++i){
+			feature[rv][STONES + 2 * i] = float(b.prev_color[i - 1][v] == pl_color[0]);
+			feature[rv][STONES + 2 * i + 1] = float(b.prev_color[i - 1][v] == pl_color[1]);
+		}
+#else
+
 		// 2. stone(0-3)を更新. Update stone (0-3).
 		//    v_color == 0 -> empty,  2 -> white, 3 -> black
 		feature[rv][int(v_color != 0)*(1 + int(b.my == int(v_color == 2)))] = 1.0;
+#endif //USE_52FEATURE
 
 		if (v_color >= 2) {
 
-			// 3. liberty(13-20)を更新. Update number of liberty (13-20).
-			//    [20] -> 8 or more liberty
-			feature[rv][13 + std::min(7, (int)b.ren[b.ren_idx[v]].lib_cnt - 1)] = 1.0;
+			// 3. liberty(LIBERTY...LIBERTY+8)を更新. Update number of liberty.
+			//    [LIBERTY + 7] -> 8 or more liberty
+			feature[rv][LIBERTY + std::min(7, (int)b.ren[b.ren_idx[v]].lib_cnt - 1)] = 1.0;
 
 		}
 		else if (b.IsLegal(b.my, v)) {
 
-			// 4. sensibleness(47)を更新
-			//    Update sensibleness (47).
+			// 4. sensibleness(SENSIBLENESS)を更新
+			//    Update sensibleness (SENSIBLENESS).
 			if(!b.IsEyeShape(b.my, v) && !b.IsSeki(v)){
-				feature[rv][47] = 1.0;
+				feature[rv][SENSIBLENESS] = 1.0;
 			}
 
 			// 5. vの周囲の連・空点を調べる
@@ -175,10 +203,10 @@ void FeedTensor::Set(Board& b, int nv){
 				}
 			}
 
-			// 7. capture size(21-28)を更新
-			//    Update capture size (21-28).
+			// 7. capture size(CAPTURESIZE...CAPTURESIZE+8)を更新
+			//    Update capture size.
 			if(cap_stone_cnt != 0){
-				feature[rv][21 + std::min(7, cap_stone_cnt - 1)] = 1.0;
+				feature[rv][CAPTURESIZE + std::min(7, cap_stone_cnt - 1)] = 1.0;
 			}
 
 			lib_bits[etor[v]/64] &= ~(0x1ULL<<(etor[v]%64));	// vを除外. Exclude v.
@@ -189,204 +217,271 @@ void FeedTensor::Set(Board& b, int nv){
 				}
 			}
 
-			// 8. self atari size(29-36)を更新
-			//    Update self Atari size (29-36).
+			// 8. self atari size(SELFATARI..SELFATARI+8)を更新
+			//    Update self Atari size.
 			if (lib_cnt == 1) {
-				feature[rv][29 + std::min(7, my_stone_cnt - 1)] = 1.0;
+				feature[rv][SELFATARI + std::min(7, my_stone_cnt - 1)] = 1.0;
 			}
-			// 9. liberty after(37-44)を更新
-			//    Update liberty after (37-44).
-			feature[rv][37 + std::min(7, lib_cnt - 1)] = 1.0;
+			// 9. liberty after(LIBERTYAFTER...LIBERTYAFTER+8)を更新
+			//    Update liberty after.
+			feature[rv][LIBERTYAFTER + std::min(7, lib_cnt - 1)] = 1.0;
 		}
+#ifndef USE_52FEATURE
 		// 10. false eye(48)を更新
 		//     Update false eye (48).
 		if(v_color == 0 && b.IsFalseEye(v)){
-			feature[rv][48] = 1.0;
+			feature[rv][FALSEEYE] = 1.0;
 		}
+#endif //USE_52FEATURE
 	}
 
-	// 11. ladder escape/capture (45-46)を更新
-	//     Update ladder escape/capture (45-46)
+	// 11. ladder escape/capture (LADDERCAP-LADDERESC)を更新
+	//     Update ladder escape/capture.
 	std::vector<int> ladder_list[2];
 	if (SearchLadder(b, ladder_list)) {
 		for (auto v : ladder_list[0]) {
-			feature[etor[v]][46] = 1.0; // Ladder escape.
+			feature[etor[v]][LADDERESC] = 1.0; // Ladder escape.
 		}
 		for (auto v : ladder_list[1]) {
-			feature[etor[v]][45] = 1.0; // Ladder capture.
+			feature[etor[v]][LADDERCAP] = 1.0; // Ladder capture.
 		}
 	}
 
 }
 
+std::string TrimString(const std::string& str, const char* trim_chars) {
+
+	std::string trimmed_str;
+	auto left = str.find_first_not_of(trim_chars);
+
+	if (left != std::string::npos)
+	{
+		auto right = str.find_last_not_of(trim_chars);
+		trimmed_str = str.substr(left, right - left + 1);
+	}
+	return trimmed_str;
+
+}
+
+bool IsFlagOn(const std::string& str) {  return str == "on" || str == "On" || str == "ON"; }
+
+
 /**
- *  FeedTensorの特徴から盤面を復元する
- *  Restore board from the features of FeedTensor.
+ *  学習用のバイナリを生成する
+ *  Make data binary for supervised learning.
  */
-void FeedTensor::Load(Board& b) {
+void MakeLearningData(){
 
-	b.Clear();
-	b.my = color;
-	b.her = int(color == 0);
+	// Read configures.
+	std::string import_path, export_path;
+	double komi_ = 7.5;
+	int max_file_cnt = 10;
 
-	int move_history[8] = { PASS, PASS, PASS, PASS, PASS, PASS, PASS, PASS };
+	std::string config_path = "learn/makedata_config.txt";
+	std::ifstream ifs(config_path);
+	std::string str;
 
-	for (int i=0;i<BVCNT;++i) {
-		int v = rtoe[i];
-		if (feature[i][0] == 0) {
-			int pl = b.my;
-			if (feature[i][2] != 0) pl = b.her;
+	// Read line by line.
+	int line_cnt = 0;
+	while (ifs && getline(ifs, str)) {
 
-			b.color[v] = pl + 2;
-			++b.stone_cnt[pl];
-			++b.move_cnt;
-			b.move_history.push_back(VNULL);
+		++line_cnt;
+		// Exclude comment.
+		auto cmt_pos = str.find("#");
+		if(cmt_pos != std::string::npos){
+			str = str.substr(0, cmt_pos);
+		}
+		str = TrimString(str, " \t\v\r\n-");
+		if(str.length() == 0) continue;
 
-			--b.empty_cnt;
-			b.empty_idx[b.empty[b.empty_cnt]] = b.empty_idx[v];
-			b.empty[b.empty_idx[v]] = b.empty[b.empty_cnt];
-
-			forEach8Nbr(v, v_nbr8, d_opp, {
-				b.ptn[v_nbr8].SetColor(d_opp, b.color[v]);
-			});
-
-			b.ReplaceProb(0, v, 0.0);
-			b.ReplaceProb(1, v, 0.0);
-			b.is_placed[pl][v] = true;
-			b.ren_idx[v] = v;
-			for(auto& lb:b.ren[v].lib_bits) lb = 0;
-			b.ren[v].lib_cnt = 0;
-			b.ren[v].size = 1;
-			b.ren[v].lib_atr = VNULL;
-
-			forEach4Nbr(v, v_nbr, {
-				if (b.color[v_nbr] == 0){
-					b.ren[b.ren_idx[v]].lib_bits[etor[v_nbr]/64] |= (0x1ULL<<(etor[v_nbr]%64));
-					b.ren[b.ren_idx[v]].lib_cnt++;
-					b.ren[b.ren_idx[v]].lib_atr = v_nbr;
-				}
-				else{
-					if(b.ren[b.ren_idx[v_nbr]].lib_bits[etor[v]/64] & (0x1ULL<<(etor[v]%64))){
-						b.ren[b.ren_idx[v_nbr]].lib_bits[etor[v]/64] ^= (0x1ULL<<(etor[v]%64));
-						b.ren[b.ren_idx[v_nbr]].lib_cnt--;
-
-						if(b.ren[b.ren_idx[v_nbr]].lib_cnt == 1){
-							for(int i=0;i<6;++i){
-								if(b.ren[b.ren_idx[v_nbr]].lib_bits[i] != 0){
-									b.ren[b.ren_idx[v_nbr]].lib_atr = rtoe[NTZ(b.ren[b.ren_idx[v_nbr]].lib_bits[i]) + i * 64];
-								}
-							}
-						}
-					}
-				}
-			});
-
-			// 自石と結合. Merge Rens.
-			forEach4Nbr(v, v_nbr1, {
-				if (b.color[v_nbr1] == b.color[v] && b.ren_idx[v_nbr1] != b.ren_idx[v]) {
-
-					if (b.ren[b.ren_idx[v]].size > b.ren[b.ren_idx[v_nbr1]].size) {
-
-						b.ren[b.ren_idx[v]].lib_cnt = 0;
-						for(int i=0;i<6;++i){
-							b.ren[b.ren_idx[v]].lib_bits[i] |= b.ren[b.ren_idx[v_nbr1]].lib_bits[i];
-							b.ren[b.ren_idx[v]].lib_cnt += (int)popcnt64(b.ren[b.ren_idx[v]].lib_bits[i]);
-						}
-						if(b.ren[b.ren_idx[v]].lib_cnt == 1){
-							for(int i=0;i<6;++i){
-								if(b.ren[b.ren_idx[v]].lib_bits[i] != 0){
-									b.ren[b.ren_idx[v]].lib_atr = rtoe[NTZ(b.ren[b.ren_idx[v]].lib_bits[i]) + i * 64];
-								}
-							}
-						}
-						b.ren[b.ren_idx[v]].size += b.ren[b.ren_idx[v_nbr1]].size;
-
-						int v_tmp = v_nbr1;
-						do {
-							b.ren_idx[v_tmp] = b.ren_idx[v];
-							v_tmp = b.next_ren_v[v_tmp];
-						} while (v_tmp != v_nbr1);
-
-						std::swap(b.next_ren_v[v], b.next_ren_v[v_nbr1]);
-					}
-					else {
-						b.ren[b.ren_idx[v_nbr1]].lib_cnt = 0;
-						for(int i=0;i<6;++i){
-							b.ren[b.ren_idx[v_nbr1]].lib_bits[i] |= b.ren[b.ren_idx[v]].lib_bits[i];
-							b.ren[b.ren_idx[v_nbr1]].lib_cnt += (int)popcnt64(b.ren[b.ren_idx[v_nbr1]].lib_bits[i]);
-						}
-						if(b.ren[b.ren_idx[v_nbr1]].lib_cnt == 1){
-							for(int i=0;i<6;++i){
-								if(b.ren[b.ren_idx[v_nbr1]].lib_bits[i] != 0){
-									b.ren[b.ren_idx[v_nbr1]].lib_atr = rtoe[NTZ(b.ren[b.ren_idx[v_nbr1]].lib_bits[i]) + i * 64];
-								}
-							}
-						}
-						b.ren[b.ren_idx[v_nbr1]].size += b.ren[b.ren_idx[v]].size;
-
-						int v_tmp = v;
-						do {
-							b.ren_idx[v_tmp] = b.ren_idx[v_nbr1];
-							v_tmp = b.next_ren_v[v_tmp];
-						} while (v_tmp != v);
-
-						std::swap(b.next_ren_v[v_nbr1], b.next_ren_v[v]);
-					}
-				}
-			});
+		// Find position after '='.
+		auto eql_pos = str.find("=") + 1;
+		if(eql_pos == std::string::npos){
+			std::cerr 	<< "Failed to parse config:" << config_path << ":"
+						<< line_cnt << " " << str << ". '=' not found.\n";
+			continue;
 		}
 
-		for (int j=0;j<8;++j) {
-			if (feature[i][j + 5] != 0) {
-				if (j == 0) b.prev_move[b.her] = v;
-				else if (j == 1) b.prev_move[b.my] = v;
-				move_history[j] = v;
+		auto key = TrimString(str.substr(0, eql_pos - 1));
+		auto val = TrimString(str.substr(eql_pos));
+
+		if(key == "import sgf dir")	import_path = val;
+		else if(key == "export dir") export_path = val;
+		else if(key == "max file count") max_file_cnt = stoi(val);
+		else if(key == "learning komi") komi_ = stod(val);
+		else{
+			std::cerr << "Unknown key: [" << key << "]" << std::endl;
+		}
+
+	}
+	ifs.close();
+
+	struct Feeds{
+		FeedTensor ft;
+		char color;
+		short move;
+		char result;
+	};
+
+	int max_train_cnt = 100000;
+	int max_test_cnt = 10000;
+
+	std::vector<Feeds> train_list;
+	std::vector<Feeds> test_list;
+	train_list.resize(max_train_cnt);
+	test_list.resize(max_test_cnt);
+
+	int file_idx = 0;
+	int train_cnt = 0;
+	int test_cnt = 0;
+	int total_feed_cnt = 0;
+
+	Board b;
+	FeedTensor ft;
+	bool export_test = false;
+
+	auto start = std::chrono::system_clock::now();
+
+	std::vector<SgfData> sgf_list;
+	int kifu_cnt = ImportSGFList(import_path, sgf_list);
+	std::fprintf(stderr, "%d files were imported.\n", kifu_cnt);
+
+	for(;;){
+		for (int i=0;i<kifu_cnt;++i) {
+			if (sgf_list[i].move_cnt < 64) continue;
+			else if (sgf_list[i].handicap != 0) continue;
+			else if (sgf_list[i].winner == -1) continue;
+			else if (sgf_list[i].komi < 6.5) continue;
+
+			// Fix result of 0.5p with different Komi.
+			if(	sgf_list[i].komi == komi_ &&
+				sgf_list[i].score == 0.5 &&
+				sgf_list[i].winner == (komi_==6.5)? 1 : 0)
+			{
+				sgf_list[i].winner = (komi_==6.5)? 0 : 1;
+			}
+
+			b.Clear();
+			int rand_cnt = int(mt_double(mt_32) * (sgf_list[i].move_cnt - 3));
+
+			for (int j = 0; j < sgf_list[i].move_cnt; ++j) {
+				int vn = sgf_list[i].move_history[j];
+				if (!b.IsLegal(b.my, vn)) break;
+
+				if(j == rand_cnt && vn != PASS){
+					if(i % 100 == 0){
+						if(test_cnt >= max_test_cnt) break;
+						ft.Set(b, vn);
+						test_list[test_cnt].ft = ft;
+						test_list[test_cnt].color = ft.color;
+						test_list[test_cnt].move = vn;
+						test_list[test_cnt].result = int(ft.color == sgf_list[i].winner);
+
+						++test_cnt;
+					}
+					else{
+						ft.Set(b, vn);
+						train_list[train_cnt].ft = ft;
+						train_list[train_cnt].color = ft.color;
+						train_list[train_cnt].move = vn;
+						train_list[train_cnt].result = int(ft.color == sgf_list[i].winner);
+
+						++train_cnt;
+						++total_feed_cnt;
+					}
+
+					if(train_cnt >= max_train_cnt || export_test){
+						std::ofstream fout;
+						std::stringstream ss;
+
+						std::string str_idx = std::to_string(file_idx);
+						if(file_idx < 10) 	str_idx = "0" + str_idx;
+						if(file_idx < 100) 	str_idx = "0" + str_idx;
+						if(export_test) str_idx = "test";
+
+						ss << export_path << str_idx << ".bin";
+						fout.open(ss.str(), std::ios::out | std::ios::binary | std::ios::trunc);
+
+						if (!fout){
+							std::cerr << "file " << ss.str() << " can not be opened." << std::endl;
+							return;
+						}
+
+						int export_feeds_cnt = export_test? test_cnt : train_cnt;
+
+						fout.write((char*)&export_feeds_cnt, sizeof(int));
+						//char buf;
+						short buf_s;
+						std::vector<char> run_length;
+
+						std::vector<Feeds>* pfd = export_test? &test_list : &train_list;
+
+						for(int j=0;j<export_feeds_cnt;++j){
+
+							for(int l=0;l<feature_cnt;++l){
+								run_length.clear();
+								char length = 1;
+								for(int k=1;k<BVCNT;++k){
+									if(	pfd->at(j).ft.feature[k - 1][l] == pfd->at(j).ft.feature[k][l] &&
+										length < 127)
+									{
+										++length;
+									}
+									else{
+										if(pfd->at(j).ft.feature[k - 1][l] == 1){
+											run_length.push_back(length);
+										}
+										else run_length.push_back(-length);
+										length = 1;
+									}
+								}
+
+								if(pfd->at(j).ft.feature[BVCNT - 1][l] == 1){
+									run_length.push_back(length);
+								}
+								else run_length.push_back(-length);
+
+								buf_s = (short)run_length.size();
+								fout.write((char*)&buf_s, sizeof(short));
+								for(auto rl: run_length){
+									fout.write((char*)&rl, sizeof(char));
+								}
+							}
+
+							fout.write((char*)&pfd->at(j).color, sizeof(char));
+							fout.write((char*)&pfd->at(j).result, sizeof(char));
+							fout.write((char*)&pfd->at(j).move, sizeof(short));
+						}
+
+						fout.close();
+
+						auto end = std::chrono::system_clock::now();
+						double elapsed = double(std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count()) / 1000;
+						fprintf(stderr, "%s.bin %.1f[sec]\n", str_idx.c_str(), elapsed);
+
+						start = std::chrono::system_clock::now();
+						train_cnt = 0;
+						++file_idx;
+
+						if(export_test){
+							std::cerr << "finished.\n";
+							exit(0);
+						}
+						else if(file_idx >= max_file_cnt) export_test = true;
+
+					}
+					else if(train_cnt % (max_train_cnt / 10) == 0) std::cerr << ".";
+
+					break;
+				}
+
+				b.PlayLegal(vn);
 			}
 		}
 	}
 
-	// 手数の偶奇を調整
-	// Adjust move_cnt.
-	if ((b.my == 1 && b.move_cnt % 2 != 0) ||
-		(b.my == 0 && b.move_cnt % 2 == 0)) {
-		++b.move_cnt;
-		b.move_history.push_back(VNULL);
-	}
-	// move_historyに直近の8手を登録
-	// Add last 8 moves to move_history.
-	for (int i=0;i<8;++i) {
-		int move_idx = b.move_cnt - 1 - i;
-		if(move_idx < 0) break;
-		b.move_history[move_idx] = move_history[i];
-	}
-
-	// 空点のアタリ・2呼吸点・確率値を更新
-	// Update 3x3 pattern and probability of empty vertexes.
-	for (int i=0, n=b.empty_cnt;i<n;++i) {
-		int v = b.empty[i];
-		b.ptn[v].SetAtari(
-			b.ren[b.ren_idx[v + EBSIZE]].lib_cnt == 1,
-			b.ren[b.ren_idx[v + 1]].lib_cnt == 1,
-			b.ren[b.ren_idx[v - EBSIZE]].lib_cnt == 1,
-			b.ren[b.ren_idx[v - 1]].lib_cnt == 1);
-		b.ptn[v].SetPreAtari(
-			b.ren[b.ren_idx[v + EBSIZE]].lib_cnt == 2,
-			b.ren[b.ren_idx[v + 1]].lib_cnt == 2,
-			b.ren[b.ren_idx[v - EBSIZE]].lib_cnt == 2,
-			b.ren[b.ren_idx[v - 1]].lib_cnt == 2);
-		b.ReplaceProb(0, v, prob_dist_base[v] * b.ptn[v].GetProb3x3(0, false));
-		b.ReplaceProb(1, v, prob_dist_base[v] * b.ptn[v].GetProb3x3(1, false));
-
-		if (feature[etor[v]][47] == 0 &&
-			b.IsLegal(b.my, v) &&
-			!b.IsEyeShape(b.my, v) &&
-			!b.IsSeki(v))
-		{
-			// コウ地点を追加
-			// Add Ko.
-			b.ko = v;
-		}
-	}
+	std::cerr << "finished.\n";
+	exit(0);
 
 }
 

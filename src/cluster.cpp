@@ -1,3 +1,4 @@
+#include <iostream>
 #include "cluster.h"
 
 using std::string;
@@ -200,7 +201,7 @@ void Cluster::LaunchWorkers(){
 
 }
 
-int Cluster::Consult(Tree& tree, string log_path){
+int Cluster::Consult(Tree& tree, std::ofstream* log_file){
 
 	SendCommand("bestbranch");
 	std::vector<bool> is_ready;
@@ -254,7 +255,7 @@ int Cluster::Consult(Tree& tree, string log_path){
 
 	Node *pn = &tree.node[tree.root_node_idx];
 	std::vector<Child*> rc;
-	SortChildren(pn, rc);
+	tree.SortChildren(pn, rc);
 	Child *rc0 = rc[0];
 
 	double win_rate = tree.BranchRate(rc0);
@@ -275,12 +276,12 @@ int Cluster::Consult(Tree& tree, string log_path){
 
 	for(int i=0, n=(int)binfo_list.size();i<n;++i){
 		if(i == n - 1){
-			PrintLog(log_path, "master: ");
+			PrintLog(log_file, "master: ");
 		}
 		else{
-			PrintLog(log_path, "worker-%d: ", i);
+			PrintLog(log_file, "worker-%d: ", i);
 		}
-		PrintLog(log_path, "%s %d[cnt] %.1f[%%] %.2f\n",
+		PrintLog(log_file, "%s %d[cnt] %.1f[%%] %.2f\n",
 				CoordinateString(binfo_list[i].move).c_str(),
 				binfo_list[i].rollout_cnt,
 				binfo_list[i].win_rate * 100,

@@ -77,7 +77,7 @@ int DistEdge(int v){
  */
 void ImportProbDist() {
 
-	std::ifstream ifs("prob_dist.txt");
+	std::ifstream ifs(working_dir + "prob_dist.txt");
 	if (ifs.fail()) cerr << "file could not be opened: prob_dist.txt" << endl;
 
 	for(int i=0;i<2;++i){
@@ -97,11 +97,19 @@ void ImportProbDist() {
 
 	// 学習から求めた盤端からの距離パラメータ
 	// Distance parameters from the outer boundary.
+#ifdef USE_SEMEAI
+	std::array<double, 10> prob_dist_edge =
+		{	1.0, 1.0, 1.0,
+			1.0, 1.0, 1.0,
+			1.0, 1.0, 1.0,
+			1.0	};
+#else
 	std::array<double, 10> prob_dist_edge =
 		{	0.448862, 0.823956, 1.639304,
 			1.257309, 0.959127, 1.007954,
 			1.084042, 1.068953, 1.063100,
 			1.101500	};
+#endif
 
 	for(auto i:rtoe){
 		prob_dist_base[i] = prob_dist_edge[DistEdge(i) - 1];

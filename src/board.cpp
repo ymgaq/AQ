@@ -60,12 +60,20 @@ inline void FillArray(A (&array)[N], const T &val){
 
 }
 
+#ifdef USE_SEMEAI
+const double response_w[4][2] = {	{14.639, 1/14.639},
+									{57.0406, 1/57.0406},
+									{18.1951, 1/18.1951},
+									{2.9047, 1/2.9047}};
+#else
+const double response_w[4][2] = {	{140.648, 1/140.648},
+									{1241.99, 1/1241.99},
+									{21.7774, 1/21.7774},
+									{7.09814, 1/7.09814}};
+#endif //USE_SEMEAI
 
-const double response_w[4][2] = {	{2.791642, 1/2.791642},
-									{205.0225, 1/205.0225},
-									{21.90445, 1/21.90445},
-									{4.755586, 1/4.755586}};
-
+const double semeai_w[2][2] = {{5.19799, 1/5.19799},
+								{3.86838, 1/3.86838} };
 
 Board::Board() {
 
@@ -84,6 +92,7 @@ Board& Board::operator=(const Board& other) {
 	my = other.my;
 	her = other.her;
 	std::memcpy(color, other.color, sizeof(color));
+	std::memcpy(prev_color, other.prev_color, sizeof(prev_color));
 	std::memcpy(empty, other.empty, sizeof(empty));
 	std::memcpy(empty_idx, other.empty_idx, sizeof(empty_idx));
 	std::memcpy(stone_cnt, other.stone_cnt, sizeof(stone_cnt));
@@ -101,12 +110,15 @@ Board& Board::operator=(const Board& other) {
 	removed_stones.clear();
 	copy(other.removed_stones.begin(), other.removed_stones.end(), back_inserter(removed_stones));
 	std::memcpy(prob, other.prob, sizeof(prob));
-	std::memcpy(is_placed, other.is_placed, sizeof(is_placed));
 	std::memcpy(ptn, other.ptn, sizeof(ptn));
 	prev_ptn[0].bf = other.prev_ptn[0].bf;
 	prev_ptn[1].bf = other.prev_ptn[1].bf;
 	prev_ptn_prob = other.prev_ptn_prob;
 	std::memcpy(response_move, other.response_move, sizeof(response_move));
+	for(int i=0;i<2;++i){
+		semeai_move[i].clear();
+		copy(other.semeai_move[i].begin(), other.semeai_move[i].end(), back_inserter(semeai_move[i]));
+	}
 	std::memcpy(is_ptn_updated, other.is_ptn_updated, sizeof(is_ptn_updated));
 	updated_ptns.clear();
 	copy(other.updated_ptns.begin(), other.updated_ptns.end(), back_inserter(updated_ptns));
@@ -130,7 +142,6 @@ void Board::Clear() {
 	her = 0;
 	empty_cnt = 0;
 	FillArray(sum_prob_rank, 0.0);
-	FillArray(is_placed, false);
 	FillArray(is_ptn_updated, false);
 
 	for (int i=0;i<EBVCNT;++i) {
@@ -146,6 +157,7 @@ void Board::Clear() {
 		// outer boundary
 		if (ex == 0 || ex == EBSIZE - 1 || ey == 0 || ey == EBSIZE - 1) {
 			color[i] = 1;
+			for(auto& pc : prev_color) pc[i] = 1;
 			empty_idx[i] = VNULL;	//442
 			ptn[i].SetNull();		//0xffffffff
 
@@ -155,6 +167,7 @@ void Board::Clear() {
 		else {
 			// empty vertex
 			color[i] = 0;
+			for(auto& pc : prev_color) pc[i] = 0;
 			empty_idx[i] = empty_cnt;
 			empty[empty_cnt] = i;
 			++empty_cnt;
@@ -202,6 +215,7 @@ void Board::Clear() {
 	prev_ptn[1].SetNull();
 	prev_ptn_prob = 0.0;
 	for(auto& i: response_move) i = VNULL;
+	for(auto& i: semeai_move) i.clear();
 	pass_cnt[0] = pass_cnt[1] = 0;
 
 }
@@ -325,10 +339,12 @@ bool Board::IsSeki(int v) const{
 	// 隣接する空点が2以上 or 両方の石が隣接しないとき -> false
 	// Return false when empty vertexes are more than 2 or
 	// both stones are not in neighboring positions.
-	if(	ptn[v].EmptyCnt() > 1 	||
+	if(	!ptn[v].IsPreAtari()	||
+		ptn[v].EmptyCnt() > 1 	||
 		ptn[v].StoneCnt(0) == 0 ||
 		ptn[v].StoneCnt(1) == 0	) return false;
 
+	int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
 	std::vector<int> nbr_ren_idxs;
 	for(int i=0;i<4;++i){
 		int v_nbr = v + VSHIFT[i];	// neighboring position
@@ -340,13 +356,25 @@ bool Board::IsSeki(int v) const{
 			// Return false when the liberty number is not 2 or the size if 1.
 			if(!ptn[v].IsPreAtari(i)) return false;
 			else if(ren[ren_idx[v_nbr]].size == 1 &&
-					ptn[v].StoneCnt(color[v_nbr] - 2) == 1)	return false;
+					ptn[v].StoneCnt(color[v_nbr] - 2) == 1){
+				for(int j=0;j<4;++j){
+					int v_nbr2 = v_nbr + VSHIFT[j];
+					if(v_nbr2 != v && color[v_nbr2] == 0)
+					{
+						int nbr_cnt = ptn[v_nbr2].StoneCnt(color[v_nbr] - 2);
+						if(nbr_cnt == 1) return false;
+					}
+				}
+			}
 
 			nbr_ren_idxs.push_back(ren_idx[v_nbr]);
 		}
+		else if(color[v_nbr] == 0){
+			lib_bits_tmp[etor[v_nbr]/64] |= (0x1ULL << (etor[v_nbr] % 64));
+		}
 	}
 
-	int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
+	//int64 lib_bits_tmp[6] = {0,0,0,0,0,0};
 	for(auto nbr_idx: nbr_ren_idxs)	{
 		for(int i=0;i<6;++i){
 			lib_bits_tmp[i] |= ren[nbr_idx].lib_bits[i];
@@ -374,16 +402,18 @@ bool Board::IsSeki(int v) const{
 			}
 		}
 		return true;
+
 	}
 	else if(lib_cnt == 3){
-
 		// 双方に目がある特殊セキか
 		// Check whether Seki where both Rens have an eye.
+		int eye_cnt = 0;
 		for(int i=0;i<6;++i){
 			while(lib_bits_tmp[i] != 0){
 				int ntz = NTZ(lib_bits_tmp[i]);
 				int v_seki = rtoe[ntz + i * 64];
-				if(IsEyeShape(0, v_seki) || IsEyeShape(1, v_seki)) return true;
+				if(IsEyeShape(0, v_seki) || IsEyeShape(1, v_seki)) ++eye_cnt;
+				if(eye_cnt >= 2 || IsFalseEye(v_seki)) return true;
 
 				lib_bits_tmp[i] ^= (0x1ULL << ntz);
 			}
@@ -541,7 +571,6 @@ inline void Board::PlaceStone(int v) {
 	empty[empty_idx[v]] = empty[empty_cnt];
 	ReplaceProb(my, v, 0.0);
 	ReplaceProb(her, v, 0.0);
-	is_placed[my][v] = true;
 
 	// 3. vを含む連indexの更新
 	//    Update Ren index including v.
@@ -717,28 +746,63 @@ inline void Board::RemoveRen(int v) {
  */
 inline bool Board::IsSelfAtariNakade(int v) const{
 
-	// 周囲4点の連が大きさ2～4のとき、ナカデになるかを調べる
-	// Check whether it will be Nakade shape when size of urrounding Ren is 2~4.
+	// 周囲4点の連が大きさ<=4のとき、ナカデになるかを調べる
+	// Check whether it will be Nakade shape when size of urrounding Ren is <= 4.
+	std::vector<int> checked_idx[2];
+	int64 space_hash[2] = {zobrist.hash[0][0][EBVCNT/2], zobrist.hash[0][0][EBVCNT/2]};
+	bool under5[2] = {true, true};
+	int64 lib_bits[2][6] = {{0,0,0,0,0,0}, {0,0,0,0,0,0}};
+
 	forEach4Nbr(v,v_nbr,{
 		if(color[v_nbr] >= 2){
-			if(ren[ren_idx[v_nbr]].size >= 2 && ren[ren_idx[v_nbr]].size <= 4){
-				unsigned long long space_hash = zobrist.hash[0][0][v - v_nbr + EBVCNT/2];
-				int v_tmp = v_nbr;
-				do{
-					// 盤中央からの相対座標のzobristハッシュ
-					// Calculate Zobrist Hash relative to the center position.
-					space_hash ^= zobrist.hash[0][0][v_tmp - v_nbr + EBVCNT/2];
-					v_tmp = next_ren_v[v_tmp];
-				} while(v_tmp != v_nbr);
-
-
-				if(nakade.vital.find(space_hash) != nakade.vital.end())
+			int pl = color[v_nbr] - 2;
+			if(ren[ren_idx[v_nbr]].size < 5){
+				if(find(checked_idx[pl].begin(), checked_idx[pl].end(), ren_idx[v_nbr])
+					== checked_idx[pl].end())
 				{
-					return true;
+					checked_idx[pl].push_back(ren_idx[v_nbr]);
+
+					for(int i=0;i<6;++i)
+						lib_bits[pl][i] |= ren[ren_idx[v_nbr]].lib_bits[i];
+
+					int v_tmp = v_nbr;
+					do{
+						// 盤中央からの相対座標のzobristハッシュ
+						// Calculate Zobrist Hash relative to the center position.
+						space_hash[pl] ^= zobrist.hash[0][0][v_tmp - v + EBVCNT/2];
+						forEach4Nbr(v_tmp, v_nbr2, {
+							if(	color[v_nbr2] == int(pl == 0) + 2){
+								if(ren[ren_idx[v_nbr2]].lib_cnt != 2){
+									under5[pl] = false;
+									break;
+								}
+								else{
+									for(int i=0;i<6;++i)
+										lib_bits[pl][i] |= ren[ren_idx[v_nbr2]].lib_bits[i];
+								}
+							}
+						});
+
+						v_tmp = next_ren_v[v_tmp];
+					} while(v_tmp != v_nbr);
 				}
 			}
+			else under5[pl] = false;
 		}
 	});
+
+	if(under5[0] && nakade.vital.find(space_hash[0]) != nakade.vital.end())
+	{
+		int lib_cnt = 0;
+		for(auto lb:lib_bits[0]) lib_cnt += (int)popcnt64(lb);
+		if(lib_cnt == 2) return true;
+	}
+	else if(under5[1] && nakade.vital.find(space_hash[1]) != nakade.vital.end())
+	{
+		int lib_cnt = 0;
+		for(auto lb:lib_bits[1]) lib_cnt += (int)popcnt64(lb);
+		if(lib_cnt == 2) return true;
+	}
 
 	return false;
 
@@ -784,7 +848,137 @@ inline bool Board::IsSelfAtari(int pl, int v) const{
 		}
 	}
 
-	return (lib_cnt == 1);
+	return (lib_cnt <= 1);
+}
+
+
+/**
+ *  呼吸点>2の石の周囲に攻め合いできる石がないか調べる．
+ */
+inline bool Board::Semeai2(std::vector<int>& patr_rens, std::vector<int>& her_libs){
+
+	her_libs.clear();
+	if(patr_rens.size() == 0) return false;
+	int my_color = my + 2;
+
+	// 1. 重複要素を削除
+	//    Remove duplicated indexes.
+	sort(patr_rens.begin(), patr_rens.end());
+	patr_rens.erase(unique(patr_rens.begin(),patr_rens.end()),patr_rens.end());
+
+	for(auto patr_idx: patr_rens){
+
+		if(ren[ren_idx[patr_idx]].size < 2) continue;
+		int v_tmp = patr_idx;
+		std::vector<int> tmp_her_libs;
+
+		// 2. 2呼吸点にされた連に隣接する敵石が取れるか調べる
+		//    Check whether it is possible to reduce liberty of neighboring stones of the Ren in pre-Atari.
+		do {
+			forEach4Nbr(v_tmp, v_nbr3,{
+
+				Ren* ren_nbr = &ren[ren_idx[v_nbr3]];
+
+				if(color[v_nbr3] == my_color){
+
+					if(ren_nbr->IsAtari()){
+						tmp_her_libs.clear();
+						break;
+					}
+					else if(ren_nbr->IsPreAtari()){
+						int64 lib_bit = 0;
+						for(int i=0;i<6;++i){
+							lib_bit = ren_nbr->lib_bits[i];
+							while(lib_bit != 0){
+								int ntz = NTZ(lib_bit);
+								int v_patr = rtoe[ntz + i * 64];
+								if(!IsSelfAtari(her, v_patr)){
+									tmp_her_libs.push_back(v_patr);
+								}
+
+								lib_bit ^= (0x1ULL << ntz);
+							}
+						}
+					}
+
+				}
+
+			});
+			v_tmp = next_ren_v[v_tmp];
+		} while (v_tmp != patr_idx);
+
+		if(tmp_her_libs.size() > 0){
+			for(auto thl:tmp_her_libs) her_libs.push_back(thl);
+		}
+	}
+
+	return (her_libs.size() > 0);
+
+}
+
+
+/**
+ *  呼吸点3の石の周囲に攻め合いできる石がないか調べる．
+ */
+inline bool Board::Semeai3(std::vector<int>& lib3_rens, std::vector<int>& her_libs){
+
+	her_libs.clear();
+	if(lib3_rens.size() == 0) return false;
+	int my_color = my + 2;
+
+	// 1. 重複要素を削除
+	//    Remove duplicated indexes.
+	sort(lib3_rens.begin(), lib3_rens.end());
+	lib3_rens.erase(unique(lib3_rens.begin(),lib3_rens.end()),lib3_rens.end());
+
+	for(auto patr_idx: lib3_rens){
+
+		if(ren[ren_idx[patr_idx]].size < 3) continue;
+		int v_tmp = patr_idx;
+		std::vector<int> tmp_her_libs;
+
+		// 2. 3呼吸点にされた連に隣接する敵石が取れるか調べる
+		//    Check whether it is possible to reduce liberty of neighboring stones of the Ren with 3 liberties.
+		do {
+			forEach4Nbr(v_tmp, v_nbr3,{
+
+				Ren* ren_nbr = &ren[ren_idx[v_nbr3]];
+
+				if(color[v_nbr3] == my_color){
+
+					if(ren_nbr->IsAtari()){
+						tmp_her_libs.clear();
+						break;
+					}
+					else if(ren_nbr->lib_cnt <= 3){
+						int64 lib_bit = 0;
+						for(int i=0;i<6;++i){
+							lib_bit = ren_nbr->lib_bits[i];
+							while(lib_bit != 0){
+								int ntz = NTZ(lib_bit);
+								int v_patr = rtoe[ntz + i * 64];
+								if(!IsSelfAtari(her, v_patr)){
+									tmp_her_libs.push_back(v_patr);
+								}
+
+								lib_bit ^= (0x1ULL << ntz);
+							}
+						}
+					}
+
+				}
+
+			});
+			v_tmp = next_ren_v[v_tmp];
+		} while (v_tmp != patr_idx);
+
+		if(tmp_her_libs.size() > 0){
+			for(auto thl:tmp_her_libs) her_libs.push_back(thl);
+		}
+	}
+
+	return (her_libs.size() > 0);
+
 }
 
 
@@ -809,6 +1003,12 @@ void Board::PlayLegal(int v) {
 	move_history.push_back(v);
 	++move_cnt;
 	removed_stones.clear();
+#ifdef USE_52FEATURE
+	for(int i=6;i>0;--i){
+		std::memcpy(prev_color[i], prev_color[i - 1], sizeof(prev_color[i]));
+	}
+	std::memcpy(prev_color[0], color, sizeof(prev_color[0]));
+#endif
 
 	// 2. 前の着手、12点パターンの確率を解消
 	//    Restore probability of distance and 12-point pattern
@@ -831,6 +1031,16 @@ void Board::PlayLegal(int v) {
 		AddProb(my, response_move[3], response_w[3][1]);
 		response_move[3] = VNULL;	//直前の石を取る. Take a stone placed previously.
 	}
+#ifdef USE_SEMEAI
+	if(semeai_move[0].size() > 0){
+		for(auto sm: semeai_move[0]) AddProb(my, sm, semeai_w[0][1]);
+		semeai_move[0].clear();
+	}
+	if(semeai_move[1].size() > 0){
+		for(auto sm: semeai_move[1]) AddProb(my, sm, semeai_w[1][1]);
+		semeai_move[1].clear();
+	}
+#endif
 
 	if (v == PASS) {
 		++pass_cnt[my];
@@ -884,6 +1094,8 @@ void Board::PlayLegal(int v) {
 	//    Reduce liberty of opponent's stones.
 	int her_color = int(my == 0) + 2;
 	std::vector<int> atari_rens;
+	std::vector<int> patr_rens;
+	std::vector<int> lib3_rens;
 
 	forEach4Nbr(v, v_nbr2, {
 
@@ -900,6 +1112,10 @@ void Board::PlayLegal(int v) {
 				break;
 			case 2:
 				SetPreAtari(v_nbr2);
+				patr_rens.push_back(ren_idx[v_nbr2]);
+				break;
+			case 3:
+				lib3_rens.push_back(ren_idx[v_nbr2]);
 				break;
 			default:
 				break;
@@ -990,6 +1206,12 @@ void Board::PlayLegal(int v) {
 		}
 	}
 
+	// 10-1. 攻め合いの点を調べる.
+#ifdef USE_SEMEAI
+	if(patr_rens.size() > 0) Semeai2(patr_rens, semeai_move[0]);
+	if(lib3_rens.size() > 0) Semeai3(lib3_rens, semeai_move[1]);
+#endif
+
 	// 11. パターンに変更があった地点の確率を更新
 	//     Update probability on all vertexes where 3x3 patterns were changed.
 	UpdateProbAll();
@@ -1018,6 +1240,14 @@ void Board::PlayLegal(int v) {
 	if(response_move[3] != VNULL){
 		AddProb(her, response_move[3], response_w[3][0]);
 	}
+#ifdef USE_SEMEAI
+	if(semeai_move[0].size() > 0){
+		for(auto sm: semeai_move[0]) AddProb(her, sm, semeai_w[0][0]);
+	}
+	if(semeai_move[1].size() > 0){
+		for(auto sm: semeai_move[1]) AddProb(her, sm, semeai_w[1][0]);
+	}
+#endif
 
 	// 14. 手番変更
 	//     Exchange the turn indexes.
@@ -1103,12 +1333,14 @@ void Board::AddProbPtn12() {
 	for(int i=0;i<empty_cnt;++i){
 		int v = empty[i];
 
+		int prev_move_ = (move_cnt >= 3)? move_history[move_cnt - 3] : PASS;
+
 		// 1. 距離パラメータを追加
 		//    Add probability of long distance.
 		AddProb(my, v, prob_dist[0][DistBetween(v, prev_move[her])][0]);
 		AddProb(my, v, prob_dist[1][DistBetween(v, prev_move[my])][0]);
 		AddProb(her, v, prob_dist[0][DistBetween(v, prev_move[my])][0]);
-		AddProb(her, v, prob_dist[1][DistBetween(v, prev_move[her])][0]);
+		AddProb(her, v, prob_dist[1][DistBetween(v, prev_move_)][0]);
 
 		// 2. 12点パターンの確率を追加
 		//    Add probability of 12-point patterns.
