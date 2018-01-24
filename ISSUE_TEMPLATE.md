@@ -1,6 +1,6 @@
 <!--
 Thank you for reporting issues.
-Since the developer is so busy, please understand that unimportant questions or requests may not be respond.
+Since the developer is so busy, please understand that unimportant questions or requests may not be responded.
 
 [Before adding an issue]
 Please search and check if there are similar issues and questions, including those already closed.
@@ -24,7 +24,7 @@ In the case of a bug, please describe the following contents.
 **Labels** (able to attach from the right setting list)
 'question': just a question
 'enhancement': request for additional functions and improvement
-'bug' : a bug
+'bug': a bug
 
 Other labels will be judged by the developer, so the reporter should not use it.
 --!>
