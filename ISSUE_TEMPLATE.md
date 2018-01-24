@@ -3,7 +3,7 @@ Thank you for reporting issues.
 Since the developer is so busy, please understand that unimportant questions or requests may not be respond.
 
 [Before adding an issue]
-Please search and confirm that there are similar issues and question, including those already closed.
+Please search and confirm that there are similar issues and questions, including those already closed.
 
 [How to add a new issue]
 **Title**
