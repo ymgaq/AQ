@@ -3,14 +3,14 @@ Thank you for reporting issues.
 Since the developer is so busy, please understand that unimportant questions or requests may not be respond.
 
 [Before adding an issue]
-Please search and confirm similar existing issues and questions, including those that have been closed.
+Please search and confirm that there are similar issues and question, including those already closed.
 
 [How to add a new issue]
 **Title**
-Make it possible to grasp the content of Issue by title only.
+Make it possible to grasp the content of the issue by title only.
 
   Good: 'Resigns immediately on handicap games'
-  Bad : 'some questions', 'a bug'
+  Bad: 'some questions', 'a bug'
 
 **Comments**
 Please write the contents concisely.
