@@ -825,14 +825,14 @@ inline bool Board::IsSelfAtari(int pl, int v) const{
 			lib_bits[etor[v_nbr]/64] |= (0x1ULL<<(etor[v_nbr]%64));
 		}
 		// v‚Ì—×ÚŒð“_‚ª“GÎ. Opponent's stone.
-		else if (color[v_nbr] == int(pl == 0)) {
+		else if (color[v_nbr] == int(pl == 0) + 2) {
 			if (ren[ren_idx[v_nbr]].IsAtari()){
 				if(ren[ren_idx[v_nbr]].size > 1) return false;
 				lib_bits[etor[v_nbr]/64] |= (0x1ULL<<(etor[v_nbr]%64));
 			}
 		}
 		// v‚Ì—×ÚŒð“_‚ªŽ©Î. Player's stone.
-		else if (color[v_nbr] == pl) {
+		else if (color[v_nbr] == pl + 2) {
 			if(ren[ren_idx[v_nbr]].lib_cnt > 2) return false;
 			for(int k=0;k<6;++k){
 				lib_bits[k] |= ren[ren_idx[v_nbr]].lib_bits[k];
