@@ -1179,6 +1179,12 @@ void Board::PlayLegal(int v) {
 							int v_s = ren_nbr->lib_atr;
 							for(int i=0;i<4;++i){
 								if(ptn[v_s].IsAtari(i) && ptn[v_s].ColorAt(i) == my_color) ++cap_cnt;
+								else if(!ptn[v_s].IsAtari(i) && ptn[v_s].ColorAt(i) == her + 2) {
+									// If connecting to our stone and live, should not count as snapback.
+									// Add a big number to make inner_cap false.
+									cap_cnt = 4;
+									break;
+								}
 							}
 							if(cap_cnt <= 1 && v_s == ren[atr_idx].lib_atr) inner_cap = true;
 						}
