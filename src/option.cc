@@ -98,7 +98,7 @@ void InitOptions(Option::OptionsMap* o) {
   (*o)["lambda_move_end"] << Option(90, 1, 401);
 #endif  // BOARD_SIZE == 19
 
-  (*o)["cp_init"] << Option(1.25);
+  (*o)["cp_init"] << Option(0.75);
   (*o)["cp_base"] << Option(20000.0);
   (*o)["use_dirichlet_noise"] << Option(false);
   (*o)["dirichlet_noise"] << Option(0.03);
@@ -252,6 +252,7 @@ std::string ReadConfiguration(int argc, char** argv) {
   // 6. Reads command line options.
   // Overwrites options from configure file.
   std::string mode = "";
+  bool set_batch_size = Options["batch_size"].get_int() != 8;
   for (int i = 0; i < argc; ++i) {
     std::string arg_i = argv[i];
     if (executable_modes.count(arg_i) > 0) {
@@ -284,8 +285,13 @@ std::string ReadConfiguration(int argc, char** argv) {
         Options[key] = flag_str(val);
       else
         Options[key] = val;
+
+      if (key == "batch_size") set_batch_size = true;
     }
   }
+  // Set 5 batch size when using search_limit option.
+  if (!set_batch_size && Options["search_limit"].get_int() > 0)
+    Options["batch_size"] = 5;
 
   std::cerr << "Configuration is loaded.\n";
 
