@@ -69,9 +69,6 @@ void InitOptions(Option::OptionsMap* o) {
 
   (*o)["working_dir"] << Option("");
   (*o)["sgf_dir"] << Option("");
-  (*o)["result_dir"] << Option("");
-  (*o)["stop_flag_dir"] << Option("");
-  (*o)["use_rating_model"] << Option(false);
   (*o)["model_path"] << Option("default");
   (*o)["validate_model_path"] << Option("default");
   (*o)["node_size"] << Option(65536, 4096, 67108864);
@@ -117,6 +114,10 @@ void InitOptions(Option::OptionsMap* o) {
   (*o)["update_each"] << Option(false);
   (*o)["model_interval"] << Option(10, 1, 10000);
   (*o)["num_agents"] << Option(-1, 2, 40);
+
+  (*o)["result_dir"] << Option("");
+  (*o)["stop_flag_dir"] << Option("");
+  (*o)["use_rating_model"] << Option(false);
 
   (*o)["db_host"] << Option("127.0.0.1");
   (*o)["db_user"] << Option("user");

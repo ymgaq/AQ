@@ -57,7 +57,7 @@
 
 # Maximum number of nodes.
 # When this number of nodes is reached, the search is terminated.
-# If you set node_size=1,000,000, AQ will consume more than 15GB of memory.
+# AQ uses about 2GB of memory per 100000 nodes.
 --node_size=65536
 
 # Whether using pondering.
