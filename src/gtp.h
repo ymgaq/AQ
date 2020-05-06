@@ -58,7 +58,7 @@ class GTPConnector {
         success_handle_(true),
         running_analysis_(false) {
     // Log settings.
-    save_log_ = Options["save_log"].get_bool();
+    save_log_ = Options["save_log"].get_bool() && !Options["lizzie"].get_bool();
     time_t t = time(NULL);
     char date[64];
     std::strftime(date, sizeof(date), "%Y%m%d_%H%M%S", localtime(&t));
@@ -321,6 +321,7 @@ class GTPConnector {
   void StopLizzieAnalysis() {
     std::lock_guard<std::mutex> lk(mx_);
     running_analysis_ = false;
+    go_ponder_ = false;
     cv_.notify_one();
   }
 

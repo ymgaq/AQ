@@ -246,6 +246,15 @@ std::string GTPConnector::OnUndoCommand() {
 std::string GTPConnector::OnLzAnalyzeCommand() {
   int interval = (args_.size() >= 1 ? stoi(args_[0]) * 10 : 100);  // millisec
   std::lock_guard<std::mutex> lk_f(mx_);
+  if (!tree_.has_eval_worker()) {
+    AllocateGPU();  // Allocates memory.
+    b_.Init();
+    tree_.InitRoot();
+    tree_.UpdateRoot(b_);
+    sgf_.Init();
+    c_engine_ = kEmpty;
+  }
+  go_ponder_ = true;
 
   // Launches thread displaying Information for Lizzie.
   if (!running_analysis_) {
