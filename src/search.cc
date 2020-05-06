@@ -254,7 +254,8 @@ double SearchTree::SearchBranch(Node* nd, Board* b, SearchRoute* route,
 }
 
 Vertex SearchTree::Search(const Board& b, double time_limit,
-                          double* winning_rate, bool is_errout, bool ponder) {
+                          double* winning_rate, bool is_errout, bool ponder,
+                          int lizzie_interval) {
   const auto t0 = std::chrono::system_clock::now();
 
   // 1. Updates root node.
@@ -340,7 +341,7 @@ Vertex SearchTree::Search(const Board& b, double time_limit,
       }
 
       // c. Searchs in parallel with thread_cnt threads.
-      AllocateThreads(b, think_time, ponder);
+      AllocateThreads(b, think_time, ponder, lizzie_interval);
       candidates = std::move(SortChildren(*nd));
 
       // d. Extends thinking time when the trial number of first move

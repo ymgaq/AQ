@@ -244,8 +244,7 @@ std::string GTPConnector::OnUndoCommand() {
  * Returns Lizzie information.
  */
 std::string GTPConnector::OnLzAnalyzeCommand() {
-  int interval = (args_.size() >= 1 ? stoi(args_[0]) * 10 : 100);  // millisec
-  std::lock_guard<std::mutex> lk_f(mx_);
+  lizzie_interval_ = (args_.size() >= 1 ? stoi(args_[0]) * 10 : 100);  // millisec
   if (!tree_.has_eval_worker()) {
     AllocateGPU();  // Allocates memory.
     b_.Init();
@@ -255,30 +254,7 @@ std::string GTPConnector::OnLzAnalyzeCommand() {
     c_engine_ = kEmpty;
   }
   go_ponder_ = true;
-
-  // Launches thread displaying Information for Lizzie.
-  if (!running_analysis_) {
-    running_analysis_ = true;
-    go_ponder_ = true;
-    tree_.PrepareToThink();
-
-    std::thread th_analyze([this, &interval]() {
-      std::unique_lock<std::mutex> lk(mx_);
-      while (running_analysis_) {
-        auto t_disp = std::chrono::system_clock::now() +
-                      std::chrono::milliseconds(interval);
-        while (running_analysis_) {
-          if (cv_.wait_until(lk, t_disp) == std::cv_status::timeout) {
-            lk.unlock();
-            tree_.LizzieInfo(tree_.root_node(), std::cout);
-            lk.lock();
-            break;
-          }
-        }
-      }
-    });
-    th_analyze.detach();
-  }
+  tree_.PrepareToThink();
 
   return "";
 }

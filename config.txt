@@ -60,5 +60,5 @@
 --resign_value=0.05
 
 # Save the thought log file in the log directory.
---save_log=on
+--save_log=off
 

@@ -352,7 +352,7 @@ class SearchTree : public RootNode, public Timer, public SearchParameter {
    * rate.
    */
   Vertex Search(const Board& b, double time_limit, double* winning_rate,
-                bool is_errout, bool ponder);
+                bool is_errout, bool ponder, int lizzie_interval = -1);
 
   /**
    * Repeats searching with a single thread.
@@ -375,7 +375,8 @@ class SearchTree : public RootNode, public Timer, public SearchParameter {
   /**
    * Assigns rollout and evaluation workers to multiple threads.
    */
-  void AllocateThreads(const Board& b, double time_limit, bool ponder) {
+  void AllocateThreads(const Board& b, double time_limit, bool ponder,
+                       int lizzie_interval = -1) {
     Node* nd = root_node();
     if (nd->num_children() <= 1) {
       stop_think_ = true;
@@ -396,6 +397,13 @@ class SearchTree : public RootNode, public Timer, public SearchParameter {
                                   time_limit, ponder, i));
       else
         ths.push_back(std::thread(&SearchTree::RolloutWorker, this, b));
+    }
+
+    if (ponder && lizzie_interval > 0) {
+      do {
+        LizzieInfo(nd, std::cout);
+        std::this_thread::sleep_for(std::chrono::milliseconds(lizzie_interval));
+      } while (!stop_think_);
     }
 
     for (std::thread& th : ths) th.join();

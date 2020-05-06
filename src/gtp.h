@@ -56,9 +56,10 @@ class GTPConnector {
       : c_engine_(kEmpty),
         go_ponder_(false),
         success_handle_(true),
-        running_analysis_(false) {
+        lizzie_interval_(-1) {
     // Log settings.
-    save_log_ = Options["save_log"].get_bool() && !Options["lizzie"].get_bool();
+    if(Options["lizzie"]) Options["save_log"] = false;
+    save_log_ = Options["save_log"].get_bool();
     time_t t = time(NULL);
     char date[64];
     std::strftime(date, sizeof(date), "%Y%m%d_%H%M%S", localtime(&t));
@@ -115,7 +116,7 @@ class GTPConnector {
                  tree_.left_time() < tree_.byoyomi() * 2)
           time_limit = tree_.byoyomi() * 2;
 
-        tree_.Search(b_, time_limit, &winning_rate, false, true);
+        tree_.Search(b_, time_limit, &winning_rate, false, true, lizzie_interval_);
       }
 
       read_th.join();
@@ -319,10 +320,8 @@ class GTPConnector {
    * Stops analysis for Lizzie.
    */
   void StopLizzieAnalysis() {
-    std::lock_guard<std::mutex> lk(mx_);
-    running_analysis_ = false;
-    go_ponder_ = false;
-    cv_.notify_one();
+    tree_.StopToThink();
+    lizzie_interval_ = -1;
   }
 
   std::string OnClearBoardCommand();
@@ -347,9 +346,7 @@ class GTPConnector {
   std::string sgf_path_;
   std::vector<std::string> args_;
   bool success_handle_;
-  std::mutex mx_;
-  std::condition_variable cv_;
-  bool running_analysis_;
+  int lizzie_interval_;
 };
 
 #endif  // GTP_H_
