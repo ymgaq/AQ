@@ -3,35 +3,37 @@
 # Number of GPUs. [1-8]
 --num_gpus=1
 
-# Number of searching threads. [1-512]
-# Tipically 4 * (number of phisical cores).
-# e.g. Sets --num_threads=16 if your CPU has
-# 4 cores and 8 threads.
+# Number of threads for search. [1-512]
+# Typically, when using batch_size=n, 2n threads are used
+# for NN searches, and the rest (at least 1) are used for
+# rollouts.
+# It is recommended to set double the batch_size unless
+# there is a reason to do so.
 --num_threads=16
 
 #### --- Time control --- ####
 
 # Main time. (in seconds)
---main_time=0
+--main_time=0.0
 
 # Japanese byoyomi time. (in seconds)
---byoyomi=3
+--byoyomi=3.0
 
 # Number of thinking-time extensions of byoyomi.
 --num_extensions=0
 
 # Margin time when thinking in byoyomi. (in seconds)
 # Use if you want to account for network delay.
---byoyomi_margin=0
+--byoyomi_margin=0.0
 
 # Threshold of remaining time that AQ returns
 # a move without search. (in seconds)
 # Used in 'sudden death' time setting.
---emergency_time=15
+--emergency_time=15.0
 
 #### --- Rule --- ####
 
-# Rule of game. 
+# Rule of game.
 # 0: Chinese, 1: Japanese, 2: Tromp-Traylor
 --rule=0
 
@@ -53,6 +55,11 @@
 # '--search_limit=-1' means that this option is disabled.
 --search_limit=-1
 
+# Maximum number of nodes.
+# When this number of nodes is reached, the search is terminated.
+# If you set node_size=1,000,000, AQ will consume more than 15GB of memory.
+--node_size=65536
+
 # Whether using pondering.
 --use_ponder=on
 
@@ -61,4 +68,3 @@
 
 # Save the thought log file in the log directory.
 --save_log=off
-
