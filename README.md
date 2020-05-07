@@ -5,7 +5,7 @@ It features support for both the Japanese rule with Komi 6.5 and the Chinese rul
 
 This program utilizes the results of the GLOBIS-AQZ project.  
 
-> GLOBIS-AQZ is a joint project developed by GLOBIS Corporation, Mr. Yu Yamaguchi, and Triple Eyes Corporation, provided by the National Institute of Advanced Industrial Science and Technology (AIST), and cooperated by the Nihon Ki-in. The program leverages the estimates in GLOBIS-AQZ.
+> GLOBIS-AQZ is a joint project developed by GLOBIS Corporation, Mr. Yu Yamaguchi, and Tripleize Co., Ltd., provided by the National Institute of Advanced Industrial Science and Technology (AIST), and cooperated by the Nihon Ki-in. This program uses the result of GLOBIS-AQZ.
 
 Since it is open source software, anyone can use it for free.  
 This program is for playing and analyzing games, so please set it to GUI software such as [Lizzie](https://github.com/featurecat/lizzie), [Sabaki](https://github.com/SabakiHQ/Sabaki) and [GoGui](https://sourceforge.net/projects/gogui/).  
@@ -84,7 +84,7 @@ They are only recognized as a command line argument.
 | :--- | :--- |
 | (not specified) | GTP communication mode |
 | --lizzie | In addition to GTP communication, it outputs information for Lizzie. |
-| --self | It starts a self game. Use it with `---save_log=on`. |
+| --self | It starts a self game. Use it with `--save_log=on`. |
 | --policy_self | It starts a self game with the best move in policy networks. |
 | --test | Tests the consistency of the board data structure, etc. |
 | --benchmark | It measures the computational speed of rollouts and neural networks. |

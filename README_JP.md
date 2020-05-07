@@ -42,23 +42,23 @@ $ ./AQ.exe --search_limit=800 --use_ponder=off
 ### 3-1. 環境変数の設定
 Windowsの場合、環境変数のPATHに以下のようなパスが登録されている必要があります。  
 ```
-{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.2\bin
-{your_tensorrt_path}\TensorRT-7.0.0.11\lib
+{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.{x}\bin
+{your_tensorrt_path}\TensorRT-7.0.0.{xx}\lib
 ```
 
 ### 3-2. エンジンファイルの生成
 初回起動時に、UFF（Universal File Format）形式のファイルからお手持ちの環境に最適化されたネットワークエンジンを生成します。  
 このエンジン生成には数分程度かかることがあります。  
-シリアライズ化されたエンジンファイルが```engine```フォルダに保存されるので、2回目以降はすぐに起動します。  
+シリアライズ化されたエンジンファイルが`engine`フォルダに保存されるので、2回目以降はすぐに起動します。  
 
 ### 3-3. Lizzieへの登録
-engineコマンドにWindowsの場合は ```{your_aq_folder}/AQ.exe --lizzie``` を登録してください。  
+engineコマンドにWindowsの場合は `{your_aq_folder}/AQ.exe --lizzie` を登録してください。  
 日本ルールで解析させたい場合など、各種設定はAQフォルダ内のconfig.txtを修正してご利用ください。  
 
 ## 4. オプション
 主なオプションについての説明です。  
 コマンドライン引数として指定できる他、config.txtを編集することでも変更可能です。  
-```--komi=6.5```のように指定してください。  
+`--komi=6.5`のように指定してください。  
 
 ### 4-1. 対局オプション
 | オプション | デフォルト値 | 説明 |
@@ -77,14 +77,14 @@ engineコマンドにWindowsの場合は ```{your_aq_folder}/AQ.exe --lizzie``` 
 | --save_log | off | 対局の思考ログ・棋譜を保存するかの設定です。 |
 
 ### 4-2. 起動モード
-主にデバッグ用の機能です。```--lizzie```以外は通常の対局・解析用途には使用しないでください。  
+主にデバッグ用の機能です。`--lizzie`以外は通常の対局・解析用途には使用しないでください。  
 コマンドライン引数としてのみ認識されます。  
 
 | オプション | 起動モード |
 | :--- | :--- |
 | （指定なし） | GTP通信モード |
 | --lizzie | GTP通信に加え、Lizzie用の情報を出力します |
-| --self | 自己対局を行います。 ```--save_log=on```と併せて使用してください。 |
+| --self | 自己対局を行います。 `--save_log=on`と併せて使用してください。 |
 | --policy_self | ポリシーネットワークの最大の手で自己対局を行います。 |
 | --test | 盤面データ構造の整合性などをテストします。 |
 | --benchmark | ロールアウトやニューラルネットワークの計算速度を測定します。 |
@@ -117,13 +117,13 @@ Requirements
 
 インクルードディレクトリに
 ```
-{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.2\include
+{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.x\include
 {your_tensorrt_path}\TensorRT-7.0.0.xx\include
 ```
 
 追加のライブラリディレクトリに
 ```
-{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.2\lib\x64
+{your_cuda_path}\NVIDIA GPU Computing Toolkit\CUDA\v10.x\lib\x64
 {your_tensorrt_path}\TensorRT-7.0.0.xx\lib
 ```
 
