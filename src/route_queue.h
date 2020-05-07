@@ -100,11 +100,10 @@ struct RouteEntry {
 };
 
 /**
- * @class
+ * @class RouteQueue
  * Queue class that exclusively stores a RouteEntry.
  * Used for managing common node information while searching in multiple search
  * trees during training.
- * See ParallelManager::Search() and ParallelManager::BackUpNodes().
  */
 class RouteQueue {
  public:

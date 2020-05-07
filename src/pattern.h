@@ -30,7 +30,7 @@
 #include "./types.h"
 
 /**
- * @class Pattern *
+ * @class Pattern
  * A structure for recognizing a pattern of stone arrangement
  * at a certain coordinate and surrounding 8 points quickly.
  * For example, the judgment of a legal hand can be judged
