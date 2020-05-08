@@ -6,25 +6,25 @@ Since the developer is so busy, please understand that unimportant questions or 
 Please search and check if there are similar issues and questions, including those already closed.
 
 [How to add a new issue]
-**Title**
+** Title **
 Make it possible to grasp the content of the issue by title only.
 
   Good: 'Resigns immediately on handicap games'
-  Bad: 'some questions', 'a bug'
+  Bad : 'some questions', 'a bug'
 
-**Comments**
+** Comments **
 Please write the contents concisely.
 Do not include multiple topics in one issue.
 
 In the case of a bug, please describe the following contents.
-+ Execution environment (AQ ver. / OS / CPU / GPU)
++ Environment ( AQ version / OS / GPU )
 + Reproduction procedure (in detail as much as possible)
 + How to fix it (if you have an idea)
 
-**Labels** (able to attach from the right setting list)
-'question': just a question
-'enhancement': request for additional functions and improvement
-'bug': a bug
+** Labels ** (able to attach from the right setting list)
+  'question'   : just a question
+  'enhancement': request for additional functions and improvement
+  'bug'        : a bug
 
 Other labels will be judged by the developer, so the reporter should not use it.
 --!>
