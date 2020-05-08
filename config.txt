@@ -4,12 +4,26 @@
 --num_gpus=1
 
 # Number of threads for search. [1-512]
-# Typically, when using batch_size=n, 2n threads are used
+# Typically, when using batch_size=n, 2*n threads are used
 # for NN searches, and the rest (at least 1) are used for
 # rollouts.
 # It is recommended to set double the batch_size unless
 # there is a reason to do so.
 --num_threads=16
+
+#### --- Rule --- ####
+
+# Rule of game.
+# 0: Chinese, 1: Japanese, 2: Tromp-Tralor
+--rule=0
+
+# Repetition rule.
+# This is a judgment method when the same board is repeated.
+# 0: Draw, 1: Super Ko, 2: Tromp-Tralor
+--repetition_rule=0
+
+# Komi. Use 6.5 for the Japanese rule.
+--komi=7.5
 
 #### --- Time control --- ####
 
@@ -30,19 +44,6 @@
 # a move without search. (in seconds)
 # Used in 'sudden death' time setting.
 --emergency_time=15.0
-
-#### --- Rule --- ####
-
-# Rule of game.
-# 0: Chinese, 1: Japanese, 2: Tromp-Tralor
---rule=0
-
-# Repetition rule.
-# 0: Draw, 1: Super Ko, 2: Tromp-Tralor
---repetition_rule=0
-
-# Komi. Sets 6.5 for Japanese rule.
---komi=7.5
 
 #### --- Search --- ####
 
