@@ -38,6 +38,7 @@
  *
  * This class is implemented with reference to OpenCLScheduler of LeelaZero.
  * https://github.com/leela-zero/leela-zero/blob/next/src/OpenCLScheduler.cpp
+ * Revision date: 5/1/2020
  */
 class EvalWorker {
  public:

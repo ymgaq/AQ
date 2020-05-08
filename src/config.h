@@ -62,6 +62,7 @@
  *
  * This code has been based on the following link code as a reference;
  * https://github.com/yaneurao/YaneuraOu/blob/master/source/config.h
+ * Revision date: 5/1/2020
  */
 #if !defined(USE_DEBUG_ASSERT)
 #define ASSERT(X)                             \
