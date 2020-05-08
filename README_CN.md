@@ -1,4 +1,4 @@
-# GLOBIS-AQZ
+# GLOBIS-AQZ (AQ)
 
 GLOBIS-AQZ是一个使用深度学习技术的围棋引擎。  
 它的特点是既支持日本规则，也支持中国规则。  
@@ -10,7 +10,7 @@ GLOBIS-AQZ是一个使用深度学习技术的围棋引擎。
 由于它是开源软件，任何人都可以免费使用。  
 本程序是用来玩游戏和分析游戏的，请将其设置为[Lizzie](https://github.com/featurecat/lizzie)、[Sabaki](https://github.com/SabakiHQ/Sabaki)、[GoGui](https://sourceforge.net/projects/gogui/)等GUI软件。  
 
-请注意，此描述为机器翻译，因此可能存在不准确的地方。
+请注意，此描述为机器翻译，因此可能存在不准确的地方。  
 
 Please see [here](https://github.com/ymgaq/AQ/blob/master/README.md) for an explanation in English.  
 日本語の説明は[こちら](https://github.com/ymgaq/AQ/blob/master/README_JP.md)をご覧ください。  
@@ -32,15 +32,15 @@ Windows 10和Linux（Ubuntu 18.04）上构建的可执行文件。
 + Windows 10 Pro (64bit) / RTX2080Ti / CUDA10.2 / TensorRT7.0.0
 
 ## 3. 如何使用
-例如，如果你想在日本规则的情况下启动GTP模式，时间设置为20分钟和30秒:  
+例如，根据日本的规则，如果你在GTP模式下开始的时间是20分钟+30秒:  
 ```
 $ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 ```
-在中国规则下（默认），搜索（playouts）的数量固定为800，没有pondering:  
+用中国规则（默认），要将出局数(playouts)固定为800，并在没有"ponder"的情况下开始:  
 ```
 $ ./AQ.exe --search_limit=800 --use_ponder=off
 ```
-在Tromp-Taylor规则下，时间设置为15分([CGOS](http://www.yss-aya.com/cgos/)):  
+用Tromp-Taylor规则，时间定在15分钟(这是一个[CGOS](http://www.yss-aya.com/cgos/)的设置):  
 ```
 $ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
@@ -76,22 +76,22 @@ $ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 | --rule | 0 | 的游戏规则。 0：中国规则 1：日本规则 2：Tromp-Taylor规则 |
 | --komi | 7.5 | Komi的数量。在日本规定的情况下，请注明6.5。 |
 | --batch_size | 8 | 一次评价的批次数。 |
-| --search_limit | -1 | 搜索次数（播放次数）。-1表示该选项被禁用。 |
+| --search_limit | -1 | 搜索次数（playouts）。-1表示该选项被禁用。 |
 | --node_size | 65536 | 搜索的最大节点数。当达到这个节点数时，搜索结束。 |
 | --use_ponder | on | 是否要在对手的回合中提前阅读。 在Lizzie中使用时必须打开它。 |
-| --resign_value | 0.05 | 放弃中奖率。 |
+| --resign_value | 0.05 | 放弃的胜率。 |
 | --save_log | off | 是否保存游戏中的思想记录和sgf文件。 |
 
 ### 4-2. 启动模式
-主要用于调试。请不要使用`--lizzie`以外的任何其他游戏进行正常的游戏和分析。  
-T它们只被认可为命令行参数。  
+主要是用来调试的。请不要使用`--lizzie`以外的任何其他游戏进行正常的游戏和分析。  
+它们只被认可为命令行参数。  
 
 | 选项 | 启动模式 |
 | :--- | :--- |
 | (不详) | GTP通信模式 |
 | --lizzie | 除了GTP通讯外，它还能为Lizzie输出信息。 |
-| --self | 它启动了一个自我游戏。 用`--save_log=on`来使用它。 |
-| --policy_self | 它以政策网络中的绝招开始了一场自我游戏。 |
+| --self | 开始自我匹配。 用`--save_log=on`来使用它。 |
+| --policy_self | 它以policy network的最大手笔开始自我匹配。 |
 | --test | 测试板式数据结构的一致性等。 |
 | --benchmark | 它可以衡量推出和神经网络的计算速度。 |
 
@@ -141,7 +141,7 @@ nvonnxparser.lib
 nvinfer.lib
 ```
 
-将上述内容一一添加，并建立起来。  
+执行上述设置并编译。  
 
 ## 6. License
 [GPL-3.0](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
