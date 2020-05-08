@@ -1,6 +1,6 @@
-# 顾彼思问鼎围棋 (GLOBIS-AQZ)
+# GLOBIS-AQZ
 
-顾彼思问鼎围棋(GLOBIS-AQZ)是一个使用深度学习技术的围棋引擎。  
+GLOBIS-AQZ是一个使用深度学习技术的围棋引擎。  
 它的特点是既支持日本规则，也支持中国规则。  
 
 该项目利用GLOBIS-AQZ项目的结果。  
@@ -40,6 +40,10 @@ $ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 ```
 $ ./AQ.exe --search_limit=800 --use_ponder=off
 ```
+在Tromp-Taylor规则下，时间设置为15分([CGOS](http://www.yss-aya.com/cgos/)):  
+```
+$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
+```
 
 ### 3-1. 设置环境变量
 在Windows的情况下，必须在PATH环境变量中注册以下路径。  
@@ -69,7 +73,7 @@ $ ./AQ.exe --search_limit=800 --use_ponder=off
 | --num_threads | 16 | 用于搜索的线程数量。 |
 | --main_time | 0.0 | 搜索的主要时间（单位：秒）。 |
 | --byoyomi | 3.0 | 倒计时时间（单位：秒）。 |
-| --rule | 0 | 的游戏规则。 0：中国规则 1：日本规则 2：Tromp-Traylor规则 |
+| --rule | 0 | 的游戏规则。 0：中国规则 1：日本规则 2：Tromp-Taylor规则 |
 | --komi | 7.5 | Komi的数量。在日本规定的情况下，请注明6.5。 |
 | --batch_size | 8 | 一次评价的批次数。 |
 | --search_limit | -1 | 搜索次数（播放次数）。-1表示该选项被禁用。 |

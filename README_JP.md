@@ -15,7 +15,7 @@ Please see [here](https://github.com/ymgaq/AQ/blob/master/README.md) for an expl
 
 ## 1. ダウンロード
 [Releases](https://github.com/ymgaq/AQ/releases)からダウンロードしてください。  
-Windows 10、 Ubuntu 18.04でビルドした実行ファイルが利用できます。  
+Windows 10、 Linuxでビルドした実行ファイルが利用できます。  
 
 それ以外の環境でそのままでは動作しない場合、5.ビルド方法を参考に各環境ごとにビルドを検討してください。(開発者向け)  
 
@@ -37,6 +37,10 @@ $ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 中国ルール・コミ7目半（デフォルト）で探索数（playouts）800固定、ポンダーなしの場合:  
 ```
 $ ./AQ.exe --search_limit=800 --use_ponder=off
+```
+Tromp-Taylorルール・コミ7目半で15分切れ負けの場合 （[CGOS](http://www.yss-aya.com/cgos/)の設定です）:  
+```
+$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
 
 ### 3-1. 環境変数の設定
@@ -67,7 +71,7 @@ engineコマンドにWindowsの場合は `{your_aq_folder}/AQ.exe --lizzie` を�
 | --num_threads | 16 | 探索に使用するスレッド数です。 |
 | --main_time | 0.0 | 探索の持ち時間（秒）です。 |
 | --byoyomi | 3.0 | 秒読みの時間（秒）です。 |
-| --rule | 0 | 対局のルールです。 0:中国ルール 1:日本ルール 2:Tromp-Traylorルール |
+| --rule | 0 | 対局のルールです。 0:中国ルール 1:日本ルール 2:Tromp-Taylorルール |
 | --komi | 7.5 | コミ数です。日本ルールの場合は6.5を指定してください。 |
 | --batch_size | 8 | 局面の評価を行うバッチ数です。 |
 | --search_limit | -1 | 探索回数（playout）。-1で無制限になります。 |

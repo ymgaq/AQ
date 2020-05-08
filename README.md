@@ -1,4 +1,4 @@
-# GLOBIS-AQZ 
+# GLOBIS-AQZ
 
 GLOBIS-AQZ is a Go game engine that uses Deep Learning technology.  
 It features support for both the Japanese rule with Komi 6.5 and the Chinese rule with Komi 7.5.  
@@ -14,13 +14,13 @@ This program is for playing and analyzing games, so please set it to GUI softwar
 请看[这里的](https://github.com/ymgaq/AQ/blob/master/README_CN.md)中文解释.  
 
 ## 1. Downloads
-Download it from [Releases](https://github.com/ymgaq/AQ/releases).  
-The executable file built on Windows 10 and Linux (Ubuntu 18.04) is available.  
+Download executable files from [Releases](https://github.com/ymgaq/AQ/releases).  
+The executable files built on Windows 10 or Linux (Ubuntu 18.04) are available.  
 
-If it does not work as it is in other environments, please consider building it for each environment (for developers)  
+If it does not work as it is in other environments, please consider building it for each environment. (for developers)  
 
 ## 2. Requirements
-+ OS  : Windows 10, Linux
++ OS  : Windows 10, Linux (64-bit)
 + GPU : Nvidia's GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
 + [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
@@ -37,6 +37,10 @@ $ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 With Chinese rule and Komi 7.5 (default), the number of searches (playouts) is fixed at 800 without ponder:  
 ```
 $ ./AQ.exe --search_limit=800 --use_ponder=off
+```
+With Tromp-Taylor rule and Komi 7.5, 15 minutes sudden death such as games on [CGOS](http://www.yss-aya.com/cgos/):  
+```
+$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
 
 ### 3-1. Setting environment variables
@@ -67,7 +71,7 @@ For example, `--komi=6.5`.
 | --num_threads | 16 | The number of threads to be used for searching. |
 | --main_time | 0.0 | Main time of search (in seconds). |
 | --byoyomi | 3.0 | Byoyomi (in seconds). |
-| --rule | 0 | The rule of the game. 0: Chinese rule 1: Japanese rule 2: Tromp-Traylor rule |
+| --rule | 0 | The rule of the game. 0: Chinese rule 1: Japanese rule 2: Tromp-Taylor rule |
 | --komi | 7.5 | Number of Komi. In the case of Japanese rule, please specify 6.5. |
 | --batch_size | 8 | The number of batches for a single evaluation. |
 | --search_limit | -1 | The number of searches (playouts). -1 means this option is disable. |
