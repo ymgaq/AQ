@@ -311,7 +311,7 @@ class StoneGroup {
   }
 
   /**
-   * Remove a stone at v from this group.
+   * Removes a stone at v from this group.
    */
   void Remove(Vertex v) {
     if (bb_liberties_.num_bits() == kVtNull) return;  // wall
@@ -322,7 +322,7 @@ class StoneGroup {
   }
 
   /**
-   * Merge with another stone group.
+   * Merges with another stone group.
    */
   void Merge(const StoneGroup& rhs) {
     bb_liberties_.Merge(rhs.bb_liberties_);

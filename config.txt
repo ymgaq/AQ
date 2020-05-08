@@ -34,11 +34,11 @@
 #### --- Rule --- ####
 
 # Rule of game.
-# 0: Chinese, 1: Japanese, 2: Tromp-Traylor
+# 0: Chinese, 1: Japanese, 2: Tromp-Tralor
 --rule=0
 
 # Repetition rule.
-# 0: Draw, 1: Super Ko, 2: Tromp-Traylor
+# 0: Draw, 1: Super Ko, 2: Tromp-Tralor
 --repetition_rule=0
 
 # Komi. Sets 6.5 for Japanese rule.

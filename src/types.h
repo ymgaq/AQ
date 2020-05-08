@@ -440,7 +440,7 @@ constexpr Vertex dir2v(Direction d) { return dir2v_[d]; }
  *
  *   Chinese: 0
  *   Japanese: 1
- *   Tromp Traylor: 2
+ *   Tromp Tralor: 2
  */
 enum Rule : int32_t {
   kChinese,
@@ -455,7 +455,7 @@ enum Rule : int32_t {
 enum RepetitionRule : int32_t {
   kRepRuleDraw,     // Draw
   kRepRuleSuperKo,  // Super-Ko
-  kRepRuleTromp,    // Tromp-Traylor rule
+  kRepRuleTromp,    // Tromp-Tralor rule
 };
 
 /**
@@ -464,8 +464,8 @@ enum RepetitionRule : int32_t {
  */
 enum RepetitionState : int32_t {
   kRepetitionNone,  // Not repetition.
-  kRepetitionWin,   // Win on Super-Ko or Tromp-Traylor rule.
-  kRepetitionLose,  // Lose on Super-Ko or Tromp-Traylor rule.
+  kRepetitionWin,   // Win on Super-Ko or Tromp-Tralor rule.
+  kRepetitionLose,  // Lose on Super-Ko or Tromp-Tralor rule.
   kRepetitionDraw,  // Draw on Japanese rule.
   kNumRepetitions,
 };
