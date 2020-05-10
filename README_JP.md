@@ -142,5 +142,5 @@ nvinfer.lib
 をそれぞれ追加してビルドしてくだい。
 
 ## 6. ライセンス
-[GPL-3.0](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
+[GPLv3](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
 開発者: [山口 祐](https://twitter.com/ymg_aq)  

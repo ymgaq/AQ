@@ -144,5 +144,5 @@ nvinfer.lib
 执行上述设置并编译。  
 
 ## 6. License
-[GPL-3.0](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
+[GPLv3](https://github.com/ymgaq/AQ/blob/master/LICENSE.txt)  
 作者: [山口 祐](https://twitter.com/ymg_aq)  
