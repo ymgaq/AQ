@@ -121,7 +121,7 @@ class RateStat {
     FetchAdd(&win_values_, rs.win_values_.load());
   }
 
-  void AddValueOnce(double win) {
+  void AddValueOnce(float win) {
     num_values_ += 1;
     FetchAdd(&win_values_, win);
   }
@@ -129,8 +129,8 @@ class RateStat {
  protected:
   std::atomic<int> num_rollouts_;     // The number of rollout execution.
   std::atomic<int> num_values_;       // The number of board evaluation.
-  std::atomic<double> win_rollouts_;  // Sum of rollout results.
-  std::atomic<double> win_values_;    // Sum of evaluation values.
+  std::atomic<float> win_rollouts_;  // Sum of rollout results.
+  std::atomic<float> win_values_;    // Sum of evaluation values.
 };
 
 // --------------------
@@ -327,7 +327,7 @@ class Node : public RateStat {
 
   int num_total_rollouts() const { return num_total_rollouts_.load(); }
 
-  double value() const { return value_.load(); }
+  float value() const { return value_.load(); }
 
   Key key() const { return key_.load(); }
 
@@ -339,12 +339,12 @@ class Node : public RateStat {
 
   void set_num_total_rollouts(int val) { num_total_rollouts_.store(val); }
 
-  void set_value(double val) { value_.store(val); }
+  void set_value(float val) { value_.store(val); }
 
   void increment_entries() { ++num_entries_; }
 
   template <bool NNSearch>
-  void VirtualLoss(int child_id, double virtual_loss) {
+  void VirtualLoss(int child_id, float virtual_loss) {
     if (NNSearch) {
       FetchAdd(&(children[child_id].win_values_), -virtual_loss);
       children[child_id].num_values_ += virtual_loss;
@@ -361,8 +361,8 @@ class Node : public RateStat {
   }
 
   template <bool NNSearch>
-  void VirtualWin(int child_id, double virtual_loss, int num_requests,
-                  double win = 0.0) {
+  void VirtualWin(int child_id, float virtual_loss, int num_requests,
+                  float win = 0.0) {
     if (NNSearch) {
       FetchAdd(&(children[child_id].win_values_),
                (win + virtual_loss) * num_requests);
@@ -386,7 +386,7 @@ class Node : public RateStat {
   std::atomic<int> num_total_values_;
   // Sum of rollout visits of all child nodes.
   std::atomic<int> num_total_rollouts_;
-  std::atomic<double> value_;     // Evaluated value of the child board.
+  std::atomic<float> value_;     // Evaluated value of the child board.
   std::atomic<Key> key_;          // Board hash of the node.
   std::atomic<int> num_entries_;  // Total node number under this node.
   std::mutex mx_;                 // Mutex for lock of this node.

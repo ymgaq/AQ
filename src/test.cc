@@ -1063,6 +1063,9 @@ void TestFreeMemory() {
   std::cout << "created node per seconds = " << num_entries / elapsed_time
             << " nps" << std::endl;
 
+  std::cout << "[Press Enter] for deleting all nodes." << std::endl;
+  getchar();
+
   Vertex v = xy2v(4, 4);
   b.MakeMove<kOneWay>(v);
   tree.ShiftRootNode(v, b);

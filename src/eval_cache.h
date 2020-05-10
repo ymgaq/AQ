@@ -147,7 +147,7 @@ class EvalCache {
   std::mutex mx_;
   size_t max_size_;
   std::unordered_map<Key, std::unique_ptr<const ValueAndProb>> vp_map_;
-  std::deque<int> order_;
+  std::deque<Key> order_;
 
   void AddCache(Key key, const ValueAndProb& vp) {
     vp_map_.emplace(key,
