@@ -4,11 +4,11 @@
 --num_gpus=1
 
 # Number of threads for search. [1-512]
-# Typically, when using batch_size=n, 2*n threads are used
-# for NN searches, and the rest (at least 1) are used for
-# rollouts.
-# It is recommended to set double the batch_size unless
-# there is a reason to do so.
+# Typically, when using batch_size=n, 2*n*num_gpus threads
+# are used for NN searches, and the rest (at least 1) are
+# used for rollouts.
+# It is recommended to set double of batch_size * num_gpus
+# unless there is a reason to do so.
 --num_threads=16
 
 #### --- Rule --- ####
