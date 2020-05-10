@@ -910,6 +910,7 @@ void SelfMatch() {
   Board b;
   SearchTree tree;
   tree.SetGPUAndMemory();
+  Options["save_log"] = true;
 
   double winning_rate = 0.5;
   int j_max = Options["num_games"].get_int();

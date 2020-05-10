@@ -90,7 +90,7 @@ $ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 | :--- | :--- |
 | (不详) | GTP通信模式 |
 | --lizzie | 除了GTP通讯外，它还能为Lizzie输出信息。 |
-| --self | 开始自我匹配。 用`--save_log=on`来使用它。 |
+| --self | 开始自我匹配。 |
 | --policy_self | 它以policy network的最大手笔开始自我匹配。 |
 | --test | 测试板式数据结构的一致性等。 |
 | --benchmark | 它可以衡量推出和神经网络的计算速度。 |

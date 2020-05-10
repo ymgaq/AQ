@@ -88,10 +88,10 @@ They are only recognized as a command line argument.
 | :--- | :--- |
 | (not specified) | GTP communication mode |
 | --lizzie | In addition to GTP communication, it outputs information for Lizzie. |
-| --self | It starts a self game. Use it with `--save_log=on`. |
-| --policy_self | It starts a self game with the best move in policy networks. |
+| --self | AQ starts a self game. |
+| --policy_self | AQ starts a self game with the best move in policy networks. |
 | --test | Tests the consistency of the board data structure, etc. |
-| --benchmark | It measures the computational speed of rollouts and neural networks. |
+| --benchmark | Measures the computational speed of rollouts and neural networks. |
 
 ## 5. Compilation method
 The following is an explanation for developers.  
