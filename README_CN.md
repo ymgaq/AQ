@@ -26,6 +26,7 @@ Windows 10和Linux（Ubuntu 18.04）上构建的可执行文件。
 + GPU : Nvidia's GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
 + [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
++ [适用于 Visual Studio 2015、2017 和 2019 的 Microsoft Visual C++ 可再发行软件包](https://support.microsoft.com/zh-cn/help/2977003/the-latest-supported-visual-c-downloads) (仅Windows)
 
 它在以下环境中进行了测试：  
 + Ubuntu 18.04 / RTX2080Ti / CUDA10.0 / TensorRT7.0.0
@@ -34,15 +35,15 @@ Windows 10和Linux（Ubuntu 18.04）上构建的可执行文件。
 ## 3. 如何使用
 例如，根据日本的规则，如果你在GTP模式下开始的时间是20分钟+30秒:  
 ```
-$ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
+$ AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 ```
 用中国规则（默认），要将出局数(playouts)固定为800，并在没有"ponder"的情况下开始:  
 ```
-$ ./AQ.exe --search_limit=800 --use_ponder=off
+$ AQ.exe --search_limit=800 --use_ponder=off
 ```
 用Tromp-Taylor规则，时间定在15分钟(这是一个[CGOS](http://www.yss-aya.com/cgos/)的设置):  
 ```
-$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
+$ AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
 
 ### 3-1. 设置环境变量

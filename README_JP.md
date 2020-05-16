@@ -24,6 +24,7 @@ Windows 10、 Linuxでビルドした実行ファイルが利用できます。
 + GPU : Nvidia製GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
 + [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
++ [Visual Studio 2015、2017、および 2019 用 Microsoft Visual C++ 再頒布可能パッケージ](https://support.microsoft.com/ja-jp/help/2977003/the-latest-supported-visual-c-downloads) (Windowsのみ)
 
 下記の環境で動作確認をしています。  
 + Ubuntu 18.04 / RTX2080Ti / CUDA10.0 / TensorRT7.0.0
@@ -32,15 +33,15 @@ Windows 10、 Linuxでビルドした実行ファイルが利用できます。
 ## 3. 使い方
 例えば、日本ルール・コミ6目半で持ち時間20分、切れたら30秒でGTPモードを起動する場合:  
 ```
-$ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
+$ AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 ```
 中国ルール・コミ7目半（デフォルト）で探索数（playouts）800固定、ポンダーなしの場合:  
 ```
-$ ./AQ.exe --search_limit=800 --use_ponder=off
+$ AQ.exe --search_limit=800 --use_ponder=off
 ```
 Tromp-Taylorルール・コミ7目半で15分切れ負けの場合 （[CGOS](http://www.yss-aya.com/cgos/)の設定です）:  
 ```
-$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
+$ AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
 
 ### 3-1. 環境変数の設定

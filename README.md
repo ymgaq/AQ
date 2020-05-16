@@ -24,7 +24,7 @@ If it does not work as it is in other environments, please consider building it 
 + GPU : Nvidia's GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
 + [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
-+ [Visual C++ redistributable packages for Visual Studio 2015-2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads) (for Windows)
++ [Visual C++ redistributable packages for Visual Studio 2015-2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads) (for Windows only)
 
 It has been tested in the following environment.  
 + Ubuntu 18.04 / RTX2080Ti / CUDA10.0 / TensorRT7.0.0
@@ -33,15 +33,15 @@ It has been tested in the following environment.
 ## 3. How to use
 For example, if you want to start GTP mode in the case of Japanese rule and with time settings of 20 minutes and 30-seconds byoyomi:  
 ```
-$ ./AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
+$ AQ.exe --rule=1 --komi=6.5 --main_time=1200 --byoyomi=30
 ```
 With Chinese rule and Komi 7.5 (default), the number of searches (playouts) is fixed at 800 without ponder:  
 ```
-$ ./AQ.exe --search_limit=800 --use_ponder=off
+$ AQ.exe --search_limit=800 --use_ponder=off
 ```
 With Tromp-Taylor rule and Komi 7.5, 15 minutes sudden death such as games on [CGOS](http://www.yss-aya.com/cgos/):  
 ```
-$ ./AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
+$ AQ.exe --rule=2 --repetition_rule=2 --main_time=900 --byoyomi=0
 ```
 
 ### 3-1. Setting environment variables
