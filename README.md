@@ -22,7 +22,7 @@ If it does not work as it is in other environments, please consider building it 
 ## 2. Requirements
 + OS  : Windows 10, Linux (64-bit)
 + GPU : Nvidia's GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
-+ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
++ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2 + [cuDNN](https://developer.nvidia.com/cudnn) 7.6.5
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
 + [Visual C++ redistributable packages for Visual Studio 2015-2019](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads) (for Windows only)
 

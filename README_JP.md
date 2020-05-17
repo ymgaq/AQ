@@ -22,7 +22,7 @@ Windows 10、 Linuxでビルドした実行ファイルが利用できます。
 ## 2. 動作環境
 + OS  : Windows 10, Linux
 + GPU : Nvidia製GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
-+ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
++ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2 + [cuDNN](https://developer.nvidia.com/cudnn) 7.6.5
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
 + [Visual Studio 2015、2017、および 2019 用 Microsoft Visual C++ 再頒布可能パッケージ](https://support.microsoft.com/ja-jp/help/2977003/the-latest-supported-visual-c-downloads) (Windowsのみ)
 

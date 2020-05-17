@@ -24,7 +24,7 @@ Windows 10和Linux（Ubuntu 18.04）上构建的可执行文件。
 ## 2. 动作环境要求
 + OS  : Windows 10, Linux
 + GPU : Nvidia's GPU ([Compute Capability](https://developer.nvidia.com/cuda-gpus) >3.0)
-+ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2
++ [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit) 10.0 or 10.2 + [cuDNN](https://developer.nvidia.com/cudnn) 7.6.5
 + [TensorRT 7.0.0](https://docs.nvidia.com/deeplearning/sdk/tensorrt-archived/tensorrt-700/tensorrt-install-guide/index.html)
 + [适用于 Visual Studio 2015、2017 和 2019 的 Microsoft Visual C++ 可再发行软件包](https://support.microsoft.com/zh-cn/help/2977003/the-latest-supported-visual-c-downloads) (仅Windows)
 
